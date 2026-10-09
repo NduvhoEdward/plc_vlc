@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Internet of Light</title>
+<meta name="description" content="A hybrid power-line and visible-light communication system. Final-year capstone, ELEN4012A.">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+:root{--paper:#F4F7FA;--ink:#16202E;--muted:#586577;--line:#D3DCE6;--copper:#C0622A;--copper-soft:#F3DCCB;--beam:#1D93CF;--beam-soft:#D6ECF7;--bad:#C4312F;--ok:#1F8A4C}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 "Segoe UI","Avenir Next",system-ui,-apple-system,sans-serif}
+a{color:var(--beam)}
+:focus-visible{outline:3px solid var(--beam);outline-offset:3px}
+.wrap{max-width:980px;margin:0 auto;padding:0 22px}
+header.top{padding:18px 0;border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand{font-weight:700;letter-spacing:-.01em}
+.course{color:var(--muted);font-size:15px}
+h1{font-size:clamp(2.2rem,6vw,3.9rem);line-height:1.05;letter-spacing:-.03em;margin:56px 0 18px;max-width:15em}
+h2{font-size:1.7rem;letter-spacing:-.02em;margin:0 0 10px}
+h3{font-size:1.1rem;margin:0 0 6px}
+p{margin:0 0 14px;max-width:62ch}
+.lede{font-size:1.2rem;color:var(--muted)}
+section{padding:54px 0;border-top:1px solid var(--line)}
+.hero{padding-bottom:40px}
+.btn{display:inline-block;background:var(--ink);color:#fff;border:0;border-radius:6px;padding:12px 20px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn:hover{background:#27364b}
+.btn.alt{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+.chain{width:100%;height:auto;margin-top:34px;display:block}
+.chain text{font:600 13px "Segoe UI",system-ui,sans-serif;fill:var(--ink)}
+.chain .sub{font-weight:400;fill:var(--muted);font-size:12px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:28px;margin-top:22px}
+.steps div{border-left:4px solid var(--line);padding-left:16px}
+.steps .plc{border-color:var(--copper)}.steps .buf{border-color:var(--ink)}.steps .vlc{border-color:var(--beam)}
+.game{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:18px}
+.controls{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-end;margin-bottom:14px}
+.controls label{display:block;font-weight:600;font-size:15px;margin-bottom:4px}
+.controls input[type=range]{width:230px;max-width:100%;accent-color:var(--beam)}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.val{font-variant-numeric:tabular-nums;font-weight:700}
+canvas{width:100%;height:230px;display:block;background:var(--paper);border-radius:6px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:10px 0 0}
+.legend i{display:inline-block;width:14px;height:10px;margin-right:6px;border-radius:2px;vertical-align:baseline}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:16px}
+.stats div{background:var(--paper);border-radius:6px;padding:10px 14px}
+.stats b{display:block;font-size:1.5rem;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stats span{font-size:14px;color:var(--muted)}
+#verdict{margin:16px 0 0;font-weight:600;min-height:1.6em}
+.note{font-size:14px;color:var(--muted);margin-top:12px}
+.find{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:22px;margin-top:22px}
+.find article{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px}
+.ph{background:var(--paper);border:1.5px dashed var(--line);border-radius:6px;height:140px;display:grid;place-items:center;color:var(--muted);font-size:14px;margin-bottom:12px}
+.tag{display:inline-block;font-size:13px;background:var(--copper-soft);color:#7A3A10;border-radius:4px;padding:1px 8px;margin-left:6px;font-weight:600}
+footer{padding:30px 0 50px;border-top:1px solid var(--line);color:var(--muted);font-size:15px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><span class="brand">Internet of Light</span><span class="course">ELEN4012A final-year capstone</span></div></header>
+
+<main>
+<section class="hero" style="border-top:0">
+<div class="wrap">
+<h1>Internet delivered through light, carried to the room by your mains wiring.</h1>
+<p class="lede">Power Line Communication moves data fast over the wires already in the walls. Visible Light Communication then hands it to a device through a lamp. We are building and testing the link between the two.</p>
+<p><a class="btn" href="#play">Play: size the buffer</a> &nbsp; <a class="btn alt" href="#findings">See our findings</a></p>
+
+<svg class="chain" viewBox="0 0 900 150" role="img" aria-label="Data path: mains wiring (PLC, megabits per second) into a buffer, then a light link (VLC, kilobits per second) to a device. The fast wire narrows to a slow beam.">
+  <path d="M10 75 H330" stroke="#C0622A" stroke-width="22" stroke-linecap="round"/>
+  <rect x="330" y="35" width="120" height="80" rx="8" fill="#fff" stroke="#16202E" stroke-width="2.5"/>
+  <path d="M450 75 H640" stroke="#1D93CF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M640 75 L800 30 V120 Z" fill="#D6ECF7"/>
+  <circle cx="850" cy="75" r="26" fill="#fff" stroke="#16202E" stroke-width="2.5"/>
+  <text x="170" y="118" text-anchor="middle">Mains wiring (PLC)</text>
+  <text x="170" y="136" text-anchor="middle" class="sub">fast, but bursts and drops out</text>
+  <text x="390" y="70" text-anchor="middle">Buffer</text>
+  <text x="390" y="88" text-anchor="middle" class="sub">smooths bursts</text>
+  <text x="560" y="105" text-anchor="middle">Light link (VLC)</text>
+  <text x="560" y="123" text-anchor="middle" class="sub">slow, steady</text>
+  <text x="850" y="80" text-anchor="middle" style="font-size:11px">device</text>
+</svg>
+</div>
+</section>
+
+<section id="how"><div class="wrap">
+<h2>How it works</h2>
+<p>Data takes three steps from the router to your device. The mismatch between the first and last is the interesting part.</p>
+<div class="steps">
+<div class="plc"><h3>1. Over the power line</h3><p>HomePlug adapters send data through the mains wiring. It is fast, but interference makes it arrive in bursts, with short dropouts.</p></div>
+<div class="buf"><h3>2. Through a buffer</h3><p>A small memory holds data while the power line is busy and releases it at the pace the light link can take.</p></div>
+<div class="vlc"><h3>3. Out through light</h3><p>An LED flickers too fast to see and carries the data to a photodiode. Reliable, but much slower than the wire.</p></div>
+</div>
+<!-- TODO: replace with final one-paragraph description from the team -->
+</div></section>
+
+<section id="play"><div class="wrap">
+<h2>Size the buffer</h2>
+<p>The power line stalls now and then, then sends everything it was holding at once. Choose how much memory the buffer gets. Too little and data is lost in the burst. Memory costs money and chip space, so find the smallest size that keeps losses under 1%.</p>
+<div class="game">
+ <div class="controls">
+  <div><label for="cap">Buffer size: <span class="val" id="capv">4.0 kB</span></label><input id="cap" type="range" min="0.5" max="32" step="0.5" value="4"></div>
+  <div><label for="lvl">Interference</label><select id="lvl"><option value="calm">Calm</option><option value="busy" selected>Busy</option><option value="harsh">Harsh</option></select></div>
+  <button class="btn" id="run" type="button">Run 60 seconds</button>
+ </div>
+ <canvas id="cv" aria-label="Chart of buffer fill over 60 seconds, with power-line dropouts shaded"></canvas>
+ <p class="legend"><span><i style="background:var(--copper-soft)"></i>power line down</span><span><i style="background:var(--beam)"></i>buffer fill</span><span><i style="background:var(--ink)"></i>buffer size</span><span><i style="background:var(--bad)"></i>data lost</span></p>
+ <div class="stats" aria-live="polite">
+  <div><b id="sLost">–</b><span>data lost</span></div>
+  <div><b id="sPeak">–</b><span>peak buffer fill</span></div>
+  <div><b id="sDelay">–</b><span>worst added delay</span></div>
+  <div><b id="sOut">–</b><span>longest dropout</span></div>
+ </div>
+ <p id="verdict" aria-live="polite"></p>
+ <p class="note">Placeholder model: illustrative data, not our measurements. It will be replaced with traces recorded on our bench. Every visitor sees the same dropouts for a given interference level, so sizes can be compared fairly.</p>
+</div>
+</div></section>
+
+<section id="findings"><div class="wrap">
+<h2>What we found <span class="tag">Placeholder</span></h2>
+<p>Results from our investigation will appear here as they are finalised.</p>
+<div class="find">
+<article><div class="ph">Figure: PLC vs VLC throughput</div><h3>The light link is the bottleneck</h3><p>Summary sentence to be added.</p></article>
+<article><div class="ph">Figure: dropout durations</div><h3>How the power line fails</h3><p>Summary sentence to be added.</p></article>
+<article><div class="ph">Figure: performance under noise</div><h3>Where the system breaks</h3><p>Summary sentence to be added.</p></article>
+</div>
+</div></section>
+
+<section id="team"><div class="wrap">
+<h2>The team</h2>
+<p>[Team member names and roles]<br>Supervisor: [name]<br>School of Electrical and Information Engineering, University of the Witwatersrand.</p>
+<div class="ph" style="max-width:420px">Photo: bench setup</div>
+</div></section>
+</main>
+
+<footer><div class="wrap">Internet of Light, ELEN4012A. Contact: [email]</div></footer>
+
+<script>
+(function(){
+const DRAIN=12.5, SRC=10, LINE=40, DT=0.01, DUR=60, N=DUR/DT, YMAX=32;
+const LV={calm:{gap:6,out:.3},busy:{gap:3,out:.5},harsh:{gap:1.5,out:.8}};
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function makeTrace(l){
+  const r=rng(11), p=LV[l], up=new Uint8Array(N).fill(1); let t=0, longest=0;
+  while(t<DUR){
+    t+=-p.gap*Math.log(1-r()); const d=-p.out*Math.log(1-r());
+    longest=Math.max(longest,Math.min(d,DUR-t));
+    for(let i=Math.floor(t/DT);i<Math.min(N,Math.floor((t+d)/DT));i++) up[i]=0;
+    t+=d;
+  }
+  return {up,longest};
+}
+let S=null, raf=0;
+function fit(){const d=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=w*d;cv.height=h*d;ctx.setTransform(d,0,0,d,0,0)}
+function draw(){
+  const w=cv.clientWidth,h=cv.clientHeight,pad=6; ctx.clearRect(0,0,w,h);
+  if(!S) return;
+  const E=S.i-1;
+  const X=i=>pad+(w-2*pad)*i/N, Y=v=>h-pad-(h-2*pad)*Math.min(v,YMAX)/YMAX;
+  ctx.fillStyle=css('--copper-soft');
+  let a=-1; for(let i=0;i<=E;i++){const d=!S.tr.up[i]; if(d&&a<0)a=i; if((!d||i===E)&&a>=0){ctx.fillRect(X(a),0,X(i)-X(a),h);a=-1}}
+  ctx.strokeStyle=css('--ink');ctx.setLineDash([6,5]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,Y(S.cap));ctx.lineTo(w,Y(S.cap));ctx.stroke();ctx.setLineDash([]);
+  ctx.strokeStyle=css('--beam');ctx.lineWidth=2;ctx.beginPath();
+  for(let i=0;i<=E;i++){const x=X(i),y=Y(S.occ[i]);i?ctx.lineTo(x,y):ctx.moveTo(x,y)} ctx.stroke();
+  ctx.fillStyle=css('--bad');
+  for(let i=0;i<=E;i++) if(S.dropAt[i]) ctx.fillRect(X(i)-1,h-pad-12,2.5,12);
+}
+function stats(done){
+  const lost=S.total?100*S.drop/S.total:0;
+  $('sLost').textContent=lost.toFixed(1)+'%';
+  $('sPeak').textContent=S.peak.toFixed(1)+' kB';
+  $('sDelay').textContent=Math.round(1000*S.peak/DRAIN)+' ms';
+  $('sOut').textContent=S.tr.longest.toFixed(2)+' s';
+  if(!done) return;
+  const v=$('verdict');
+  if(lost<1){v.style.color=css('--ok');v.textContent=S.cap>4?'Under 1% lost. Can you do it with less memory?':'Under 1% lost with only '+S.cap.toFixed(1)+' kB. Try Harsh interference.'}
+  else{v.style.color=css('--bad');v.textContent=lost.toFixed(1)+'% lost. The buffer overflowed during bursts. Try more memory.'}
+}
+function step(){
+  const i=S.i, tr=S.tr; S.upq+=SRC*DT; let dropped=0;
+  if(tr.up[i]){const mv=Math.min(S.upq,LINE*DT); S.upq-=mv; const acc=Math.min(mv,S.cap-S.buf); S.buf+=acc; dropped=mv-acc}
+  S.drop+=dropped; S.total+=SRC*DT; S.dropAt[i]=dropped>1e-9?1:0;
+  S.buf-=Math.min(S.buf,DRAIN*DT); S.occ[i]=S.buf; S.peak=Math.max(S.peak,S.buf);
+}
+function frame(){
+  const fast=matchMedia('(prefers-reduced-motion:reduce)').matches, k=fast?N:10;
+  for(let j=0;j<k&&S.i<N-1;j++){step();S.i++}
+  draw(); stats(false);
+  if(S.i<N-1) raf=requestAnimationFrame(frame); else {step(); S.i++; draw(); stats(true); $('run').disabled=false}
+}
+function run(){
+  cancelAnimationFrame(raf); fit();
+  S={cap:+$('cap').value,tr:makeTrace($('lvl').value),i:0,upq:0,buf:0,drop:0,total:0,peak:0,occ:new Float32Array(N),dropAt:new Uint8Array(N)};
+  $('verdict').textContent=''; $('run').disabled=true; frame();
+}
+$('cap').addEventListener('input',e=>{$('capv').textContent=(+e.target.value).toFixed(1)+' kB'});
+$('run').addEventListener('click',run);
+addEventListener('resize',()=>{fit();draw()});
+fit();
+})();
+</script>
+</body>
+</html>
