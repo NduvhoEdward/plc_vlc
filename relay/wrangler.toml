@@ -13,3 +13,6 @@ class_name = "RigRoom"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["RigRoom"]
+
+# Remain on Workers Free. No R2, paid storage, custom domain, or cron needed.
+# Secrets: SESSION_SECRET, AGENT_TOKEN, JOIN_PASSCODE, TURNSTILE_SECRET.
