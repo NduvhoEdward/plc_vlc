@@ -8,7 +8,7 @@ with ZipFile(root.parent / 'internet-of-light-pages.zip', 'w', ZIP_DEFLATED) as 
         if file.is_file(): archive.write(file, file.relative_to(root / 'public').as_posix())
 
 allowed_dirs = {'public', 'relay', 'agent', 'tests'}
-allowed_root = {'.gitignore', 'README.md', 'HOSTING.md', 'VALIDATION.md', 'package.json', 'preview.mjs', 'launch-preview.cmd', 'package_site.py'}
+allowed_root = {'.gitignore', 'README.md', 'HOSTING.md', 'VALIDATION.md', 'package.json', 'preview.mjs', 'launch-preview.cmd', 'package_site.py', 'wrangler.jsonc', 'index.html'}
 files = []
 for file in sorted(root.rglob('*')):
     if not file.is_file(): continue

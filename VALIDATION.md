@@ -1,5 +1,15 @@
 # Verification — 12 October 2026
 
+## Published website
+
+The placeholder was replaced on the existing `https://plc-vlc.pages.dev` project through GitHub pull request #1, merged into `main` as 77e2a18. The deployed homepage and studio loaded successfully, and a browser demo message reached the simulated receiver without console errors. Live rig deployment/connection remains separate from the static website.
+
+## Phone interface checks
+
+The phone-focused update adds persistent bottom actions, sticky connection/queue status, separate creation and monitoring views, and visible-preview gating before submission. It supports landscape, safe-area insets, and visual-viewport keyboard positioning.
+
+Browser checks passed at 360×800, 390×844, 430×932 and 844×390 (landscape). The document did not exceed the observed viewport width. In landscape, the preview remained above the fixed controls after correcting the scroll offset. Simulated text transfer, activity monitoring, drawing and undo were checked in the phone layout. Physical phone keyboards and camera capture still need Android/iOS device checks.
+
 ## Passed
 
 - 10 Node tests: controller exclusivity; active-transfer lease locking; duplicate/conflicting IDs; payload bounds and encoding; credential tampering/expiry; request body limits without Content-Length; Worker origin and agent-auth rejection; private receiver results; receiver hash and hardware-idle acknowledgement requirements; session message limits.
@@ -18,8 +28,8 @@
 - Real phone camera capture and touch events on Android/iOS. The browser drawing check used pointer dragging in a phone-sized viewport.
 - Independent scientific metrics such as BER/SNR. Unsupported measurements show Unavailable; the agent does not fabricate them.
 
-## Hosting blockers in this session
+## Initial tooling limitations
 
-Cloudflare dashboard is at its sign-in page, so no account or deployment has been provisioned. Native Sites hosting tools are unavailable. Installing Wrangler from the npm registry failed with UNABLE_TO_VERIFY_LEAF_SIGNATURE; TLS verification was not disabled. The static direct-upload archive is independent of that installation.
+The initial local build could not publish through native Sites tools. Installing Wrangler from the npm registry failed with UNABLE_TO_VERIFY_LEAF_SIGNATURE; TLS verification was not disabled. Git reads subsequently worked through Windows certificate trust, and the authenticated GitHub browser session published the existing Pages site through its established Git integration. The separate Worker, Turnstile secrets and real laptop agent still require live setup.
 
 The home-page performance values are copied from the existing local optical acceptance records (32×16: 797 ms; 64×32: 2547 ms; 128×64: 8110 ms). They do not represent web-to-PLC-to-VLC measurements.

@@ -23,6 +23,8 @@ Use an HTTP server rather than double-clicking the HTML: the studio uses JavaScr
 
 Demo mode works immediately in a browser and transmits nothing externally. Image originals are decoded and reduced on the device. Drawings and text drafts are saved in that browser's local storage when available. Uploaded originals are held in memory only.
 
+The phone studio has separate **Create & send** and **Monitor link** views. A persistent bottom bar holds preview, send, cancel and queue actions, while connection and controller status stay visible during scrolling. Phone submission first brings the actual payload into view. Monitoring shows public link/activity status while keeping received content private to its sender. Layouts handle portrait, landscape, safe areas and keyboard viewport changes.
+
 ## Limits and image format
 
 The existing hardware carries printable optical text records of up to 51 bytes. The web agent wraps text in a transfer-specific `TX1:<8 hex ID>:<text>:<CRC16>` record, so messages are limited to 30 printable ASCII characters. The receiver firmware still receives ordinary printable text. The web agent interprets the envelope from `RX message:` output; the older dashboard will show the envelope literally.
