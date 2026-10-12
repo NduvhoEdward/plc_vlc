@@ -1,0 +1,11 @@
+{
+  "name": "internet-of-light",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "preview": "node preview.mjs",
+    "test": "node --experimental-loader ./tests/cloudflare-loader.mjs --test tests/*.test.js",
+    "deploy:relay": "wrangler deploy --config relay/wrangler.toml"
+  },
+  "devDependencies": { "wrangler": "^4.0.0" }
+}

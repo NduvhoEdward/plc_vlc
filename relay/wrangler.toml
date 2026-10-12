@@ -1,0 +1,18 @@
+name = "internet-of-light-relay"
+main = "worker.js"
+compatibility_date = "2026-10-12"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGIN = "https://plc-vlc.pages.dev"
+
+[[durable_objects.bindings]]
+name = "RIG"
+class_name = "RigRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RigRoom"]
+
+# Remain on Workers Free. No R2, paid storage, custom domain, or cron needed.
+# Secrets: SESSION_SECRET, AGENT_TOKEN, JOIN_PASSCODE, TURNSTILE_SECRET.
