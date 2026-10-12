@@ -5,6 +5,8 @@ const tabs = [...document.querySelectorAll('[role=tab]')];
 let mode = 'demo', tab = 'text', source = null, payload = null, busy = false, socket = null, token = null;
 let session = null, room = null, turnstileToken = '', widget = null, reconnectTimer, reconnectAttempt = 0, connectedOnce = false;
 let transferId = null, savedPayload = null, startedAt = 0, demoTimer = null, stageIndex = -1, lastTelemetry = 0;
+let workspace = 'compose', previewInView = false;
+const phoneLayout = matchMedia('(max-width: 650px), (max-width: 950px) and (max-height: 500px)');
 const stages = ['prepared', 'uploaded', 'queued', 'accepted', 'plc', 'vlc', 'confirmed'];
 let erased = false, drawingPointer = null, history = [], changedDuringStroke = false;
 const drawing = $('drawing'), dctx = drawing.getContext('2d');
@@ -112,6 +114,7 @@ function markStage(stage, message = '') {
   [...$('journey').children].forEach((li, i) => { li.className = i < stageIndex ? 'done' : i === stageIndex ? 'current' : ''; });
   if (stage === 'confirmed') [...$('journey').children].forEach(li => li.className = 'done');
   if (message) $('transfer-status').textContent = message;
+  if (busy && mode === 'demo') $('monitor-activity').textContent = `SIMULATED · ${$('journey').children[Math.max(0, stageIndex)].textContent}`;
 }
 function syncButtons() {
   const controller = room?.controller === session;
@@ -119,10 +122,48 @@ function syncButtons() {
   $('send').textContent = mode === 'demo' ? 'Send in demo ↗' : 'Send through PLC → VLC ↗';
   $('send').disabled = !payload || busy || (mode === 'live' && (!controller || !online || !!room?.active));
   $('join-queue').hidden = mode !== 'live' || !socket || socket.readyState !== 1 || controller || (room?.queue || []).includes(session);
-  $('leave-queue').hidden = mode !== 'live' || (!controller && !(room?.queue || []).includes(session));
+  const needsPreview = workspace === 'compose' && phoneLayout.matches && payload && !previewInView && !busy;
+  $('preview-payload').hidden = !needsPreview;
+  $('send').hidden = workspace === 'monitor' || !$('join-queue').hidden || !!needsPreview;
+  $('return-editor').hidden = workspace !== 'monitor';
+  $('leave-queue').hidden = busy || mode !== 'live' || (!controller && !(room?.queue || []).includes(session));
+  $('leave-queue').textContent = controller ? 'Release turn' : 'Leave queue';
+  const position = room?.queue?.indexOf(session) ?? -1;
+  if (mode === 'live' && !controller && position >= 0) $('send').textContent = `Waiting · queue ${position + 1}`;
   $('cancel').hidden = !busy;
   $('demo-mode').disabled = busy; $('live-mode').disabled = busy;
 }
+function setWorkspace(next) {
+  workspace = next; document.body.dataset.view = next;
+  $('view-compose').setAttribute('aria-pressed', next === 'compose'); $('view-monitor').setAttribute('aria-pressed', next === 'monitor');
+  syncButtons();
+  if (next === 'monitor' && phoneLayout.matches) $('studio-workspace').scrollIntoView({ block: 'start', behavior: 'auto' });
+}
+$('view-compose').onclick = () => setWorkspace('compose');
+$('view-monitor').onclick = () => setWorkspace('monitor');
+$('return-editor').onclick = () => { setWorkspace('compose'); document.querySelector('.editor').scrollIntoView({ block: 'start', behavior: 'auto' }); };
+$('preview-payload').onclick = () => {
+  if (/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '')) document.activeElement.blur();
+  $('payload-preview-card').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+};
+let previewObserver;
+function observePreview() {
+  previewObserver?.disconnect();
+  const landscape = matchMedia('(min-width: 651px) and (max-height: 500px)').matches;
+  previewObserver = new IntersectionObserver(entries => { previewInView = entries[0].isIntersecting && entries[0].intersectionRatio >= .5; syncButtons(); }, { threshold: [0, .5, 1], rootMargin: phoneLayout.matches ? landscape ? '-118px 0px -80px 0px' : '-180px 0px -90px 0px' : '0px' });
+  previewObserver.observe(document.querySelector('.preview-box'));
+}
+observePreview();
+phoneLayout.addEventListener('change', () => { observePreview(); syncButtons(); });
+function positionPhoneDock() {
+  const gap = window.visualViewport && phoneLayout.matches ? Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop) : 0;
+  const keyboard = gap > 120 && /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
+  document.body.classList.toggle('keyboard-open', keyboard);
+  $('action-dock').style.bottom = keyboard ? `${gap}px` : '';
+}
+window.visualViewport?.addEventListener('resize', positionPhoneDock);
+window.visualViewport?.addEventListener('scroll', positionPhoneDock);
+document.addEventListener('focusin', positionPhoneDock); document.addEventListener('focusout', () => setTimeout(positionPhoneDock, 0));
 function switchMode(next) {
   if (busy) return;
   mode = next; $('demo-mode').setAttribute('aria-pressed', next === 'demo'); $('live-mode').setAttribute('aria-pressed', next === 'live');
@@ -136,19 +177,23 @@ function switchMode(next) {
   $('rig-status').textContent = next === 'demo' ? 'Simulated' : 'Rig offline'; $('relay-status').textContent = next === 'demo' ? 'Browser demo' : 'Not connected';
   $('role-status').textContent = next === 'demo' ? 'Demo controller' : 'Viewer'; $('turn-status').textContent = next === 'demo' ? 'No queue in demo' : 'Not in queue';
   clearTelemetry(); setupTurnstile(); syncButtons();
+  $('monitor-mode').textContent = next === 'demo' ? 'Demo / no hardware' : 'Waiting for rig';
+  $('monitor-activity').textContent = next === 'demo' ? 'No hardware connected. Demo transfers are simulated.' : 'Rig offline. Connect to the relay to view measured activity.';
 }
 $('demo-mode').onclick = () => switchMode('demo'); $('live-mode').onclick = () => switchMode('live');
-function clearTelemetry() { lastTelemetry = 0; for (const name of ['throughput', 'loss', 'ber', 'snr', 'latency', 'links']) $(`metric-${name}`).textContent = 'Unavailable'; $('telemetry-tag').textContent = 'No measurements'; $('last-update').textContent = 'Waiting for measured telemetry.'; }
+function clearTelemetry() { lastTelemetry = 0; for (const name of ['throughput', 'loss', 'ber', 'snr', 'latency', 'links']) $(`metric-${name}`).textContent = 'Unavailable'; $('telemetry-tag').textContent = 'No measurements'; $('last-update').textContent = 'Waiting for measured telemetry.'; $('monitor-plc').textContent = 'Unavailable'; $('monitor-vlc').textContent = 'Unavailable'; }
 function showTelemetry(m) {
   lastTelemetry = Date.now(); $('telemetry-tag').textContent = m.simulated ? 'Simulated' : 'Measured';
   for (const [name, unit] of Object.entries({ throughput: ' kbit/s', loss: '%', ber: '', snr: ' dB', latency: ' ms' })) {
     const value = m[name]; $(`metric-${name}`).textContent = typeof value === 'number' && Number.isFinite(value) ? `${value}${unit}` : 'Unavailable';
   }
   $('metric-links').textContent = `${m.plc || 'Unavailable'} / ${m.vlc || 'Unavailable'}`;
+  $('monitor-plc').textContent = m.plc || 'Unavailable'; $('monitor-vlc').textContent = m.vlc || 'Unavailable';
   $('last-update').textContent = `Updated ${new Date(lastTelemetry).toLocaleTimeString()}`;
 }
 function complete(result, simulated = false) {
   busy = false;
+  if (simulated || mode === 'demo') $('monitor-activity').textContent = result.status === 'confirmed' ? 'SIMULATED · Transfer complete. No hardware was used.' : 'SIMULATED · Transfer stopped.';
   if (result.status === 'confirmed' && result.received) {
     markStage('confirmed', simulated ? 'Simulated transfer complete.' : 'Receiver confirmation received.');
     $('receiver-empty').hidden = true;
@@ -232,6 +277,9 @@ function openSocket() {
     let data; try { data = JSON.parse(event.data); } catch { return; }
     if (data.type === 'room') {
       room = data; $('rig-status').textContent = data.online ? data.simulated ? 'Simulated agent' : data.ready ? 'Rig online' : 'Reconciling rig' : 'Rig offline';
+      $('monitor-mode').textContent = data.simulated ? 'Simulated agent' : data.online ? 'Measured rig' : 'Rig offline';
+      const activeStage = data.active ? stages.indexOf(data.active.stage) : -1;
+      $('monitor-activity').textContent = !data.online ? 'Rig offline. Last activity cannot confirm a live connection.' : data.active ? `${data.simulated ? 'SIMULATED · ' : ''}${activeStage >= 0 ? $('journey').children[activeStage].textContent : 'Transfer in progress'}` : data.ready ? 'Rig idle. Waiting for the controller.' : 'Reconciling an interrupted transfer. Controls remain locked.';
       $('mode-title').textContent = data.simulated ? 'Live relay · simulated laptop agent' : 'Live mode — physical rig';
       $('mode-description').textContent = data.simulated ? 'The relay is real; hardware stages and receiver results are simulated.' : 'Only hardware acknowledgements can confirm a real transfer.';
       $('role-status').textContent = data.controller === session ? 'Controller' : 'Viewer';
@@ -254,6 +302,7 @@ function openSocket() {
   current.onclose = () => {
     if (socket !== current || mode !== 'live') return;
     $('relay-status').textContent = 'Disconnected'; $('rig-status').textContent = 'Rig offline / unknown'; room = null; syncButtons();
+    $('monitor-mode').textContent = 'Disconnected'; $('monitor-activity').textContent = 'Relay disconnected. Live rig status is unknown.';
     if (busy) $('transfer-status').textContent = 'Connection lost. Transfer status will be reconciled; your draft is kept.';
     if (reconnectAttempt < 6) reconnectTimer = setTimeout(openSocket, Math.min(30000, 1000 * 2 ** reconnectAttempt++));
     else $('connection-error').textContent = 'Reconnect using the invitation passcode. Your draft is kept.';
@@ -262,7 +311,7 @@ function openSocket() {
 }
 setInterval(() => {
   if (mode === 'live' && room?.controller === session) $('turn-status').textContent = room.active ? 'Transfer in progress' : `${Math.max(0, Math.ceil((room.leaseUntil - Date.now()) / 1000))} s remaining`;
-  if (lastTelemetry && Date.now() - lastTelemetry > 5000) { $('telemetry-tag').textContent = 'Stale'; $('last-update').textContent = 'Telemetry is stale — last update over 5 seconds ago.'; }
-  if (mode === 'live' && socket?.readyState === 1 && room?.online && Date.now() - (room.agentSeen || 0) > 5000) { room.online = false; $('rig-status').textContent = 'Rig offline'; syncButtons(); }
+  if (lastTelemetry && Date.now() - lastTelemetry > 5000) { $('telemetry-tag').textContent = 'Stale'; $('last-update').textContent = 'Telemetry is stale — last update over 5 seconds ago.'; $('monitor-plc').textContent = 'Stale'; $('monitor-vlc').textContent = 'Stale'; }
+  if (mode === 'live' && socket?.readyState === 1 && room?.online && Date.now() - (room.agentSeen || 0) > 5000) { room.online = false; $('rig-status').textContent = 'Rig offline'; $('monitor-mode').textContent = 'Rig offline'; $('monitor-activity').textContent = 'Agent telemetry stopped. Waiting for reconnection.'; syncButtons(); }
 }, 1000);
 update();
