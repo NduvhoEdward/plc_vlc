@@ -1,5 +1,7 @@
 """RX laptop: serial observations to relay and opt-in local presentation."""
 import argparse, asyncio, json, os, re, threading, time
+from collections import deque
+from urllib.parse import parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
@@ -22,16 +24,29 @@ update();setInterval(update,1000);
 class Display:
     def __init__(self):
         self.lock=threading.Lock()
+        self.lines=deque(maxlen=2048);self.line_seq=0
         self.state=dict(connected=False,stats={},result=None)
     def update(self,**changes):
         with self.lock:self.state.update(changes)
+    def observe_line(self,line):
+        with self.lock:
+            self.line_seq+=1
+            self.lines.append(dict(seq=self.line_seq,kind='line',role='RX',line=line[:4096],at=time.monotonic()))
+    def observations(self,after=0):
+        with self.lock:
+            if after>self.line_seq:after=0
+            return json.dumps(dict(cursor=self.line_seq,connected=self.state['connected'],events=[item for item in self.lines if item['seq']>after])).encode()
     def snapshot(self):
         with self.lock:return json.dumps(self.state).encode()
 
 def serve(display,port):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if self.path=='/state':body=display.snapshot();kind='application/json'
+            if urlparse(self.path).path=='/events':
+                try:after=max(0,int(parse_qs(urlparse(self.path).query).get('after',['0'])[0]))
+                except ValueError:self.send_error(400);return
+                body=display.observations(after);kind='application/json'
+            elif self.path=='/state':body=display.snapshot();kind='application/json'
             elif self.path=='/':body=PAGE.encode();kind='text/html; charset=utf-8'
             else:self.send_error(404);return
             self.send_response(200);self.send_header('Content-Type',kind)
@@ -59,6 +74,7 @@ class Receiver:
             lines=(self.partial+chunk).split(b'\n');self.partial=lines.pop()[-4096:]
             for raw in lines:
                 line=raw.decode('ascii','replace').strip()
+                if line:self.display.observe_line(line)
                 if line.startswith('RX STAT '):
                     self.stats={k:int(v) for k,v in re.findall(r'(\w+)=(\d+)',line)}
                     self.display.update(stats=self.stats)

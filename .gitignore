@@ -30,3 +30,5 @@ source-update-files.json
 production-cancel-check.json
 
 .tools/
+
+desktop_dashboard/results/

@@ -8,6 +8,8 @@ sys.path.insert(0,str(ROOT/'agent'))
 STATE={'role':'','status':'Starting','lines':[]}
 STATE_LOCK=threading.Lock()
 CHILD=None
+DASHBOARD=None
+SHUTDOWN=threading.Event()
 PAGE=r"""<!doctype html><meta charset="utf-8"><title>Internet of Light | Bridge</title>
 <style>body{font:18px system-ui;background:#eff4f8;color:#16202e;max-width:1000px;margin:40px auto;padding:20px}h1{font-size:42px}pre{white-space:pre-wrap;background:#16202e;color:#d4ecdf;padding:24px;border-radius:12px}a{color:#186780}</style>
 <h1>Internet of Light</h1><h2 id="role"></h2><p id="status">Starting...</p>
@@ -24,6 +26,12 @@ def status(message):
     log(message)
 def server(port):
     class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            if self.path!='/stop' or self.headers.get('X-IOL-Stop')!='1':
+                self.send_error(403);return
+            SHUTDOWN.set()
+            threading.Thread(target=stop_child,daemon=True).start()
+            self.send_response(200);self.end_headers();self.wfile.write(b'Stopping bridge')
         def do_GET(self):
             if self.path=='/state':
                 with STATE_LOCK:body=json.dumps(STATE).encode()
@@ -95,7 +103,7 @@ def stop_child():
             except subprocess.TimeoutExpired:CHILD.kill();CHILD.wait()
     CHILD=None
 def bridge(role,cfg,cred,port=None):
-    global CHILD
+    global CHILD,DASHBOARD
     env=os.environ.copy()
     url=cred['relayUrl'].replace('https://','wss://',1)
     if role=='sender':
@@ -118,7 +126,17 @@ def bridge(role,cfg,cred,port=None):
         if 'RX connected.' in line or 'Connected to relay.' in line or 'Relay connected' in line:
             with STATE_LOCK:STATE['status']='Connected to relay'
         if role=='receiver' and 'Presentation:' in line and not opened:
-            webbrowser.open('http://127.0.0.1:'+str(cfg['display_port']));opened=True
+            if cfg.get('receiver_dashboard')=='original':
+                if DASHBOARD is None or DASHBOARD.poll() is not None:
+                    gui_env=os.environ.copy()
+                    gui_env['TCL_LIBRARY']=str(ROOT/'gui-runtime'/'tcl'/'tcl8.6')
+                    gui_env['TK_LIBRARY']=str(ROOT/'gui-runtime'/'tcl'/'tk8.6')
+                    gui_log=(ROOT/'logs'/'dashboard.log').open('a',encoding='utf-8')
+                    DASHBOARD=subprocess.Popen([str(ROOT/'gui-runtime'/'pythonw.exe'),str(ROOT/'dashboard'/'mobile_receiver_dashboard.py')],cwd=ROOT/'dashboard',env=gui_env,stdout=gui_log,stderr=gui_log)
+                    gui_log.close()
+                    log('Original VLC Pixel Studio opened. RX serial remains owned by the receiver bridge.')
+            else:webbrowser.open('http://127.0.0.1:'+str(cfg['display_port']))
+            opened=True
     return CHILD.wait() if CHILD else 1
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--self-check',action='store_true');parser.add_argument('--check-hardware',action='store_true')
@@ -140,7 +158,7 @@ def main():
     http=server(cfg['launcher_port']);webbrowser.open('http://127.0.0.1:'+str(cfg['launcher_port']))
     status('Keep this window open. Ctrl+C stops this bridge.')
     try:
-        while True:
+        while not SHUTDOWN.is_set():
             if not relay_available(cred['relayUrl']):
                 status('Waiting for internet / Cloudflare. Connect this PC to internet; retrying in 5 seconds.');time.sleep(5);continue
             port=None
@@ -163,7 +181,10 @@ def main():
             stop_child()
             status('Bridge exited ('+str(code)+'). Checking hardware and restarting in 5 seconds.');time.sleep(5)
     except KeyboardInterrupt:status('Stopping this bridge...')
-    finally:stop_child();http.shutdown();lock.close()
+    finally:
+        stop_child()
+        if DASHBOARD is not None and DASHBOARD.poll() is None:DASHBOARD.terminate()
+        http.shutdown();lock.close()
 if __name__=='__main__':
     try:main()
     except KeyboardInterrupt:stop_child()

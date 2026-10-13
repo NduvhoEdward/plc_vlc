@@ -29,4 +29,19 @@ class LauncherTests(unittest.TestCase):
             self.assertFalse(launcher.relay_available('https://example.com'))
     def test_dashboard_javascript_has_no_literal_newline_in_string(self):
         self.assertIn("join('\\n')",launcher.PAGE)
+
+    def test_stop_endpoint_requires_custom_header(self):
+        import urllib.request,urllib.error
+        server=launcher.server(0)
+        url='http://127.0.0.1:'+str(server.server_port)+'/stop'
+        try:
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                urllib.request.urlopen(urllib.request.Request(url,data=b''))
+            self.assertEqual(error.exception.code,403)
+            self.assertFalse(launcher.SHUTDOWN.is_set())
+            request=urllib.request.Request(url,data=b'',headers={'X-IOL-Stop':'1'})
+            with urllib.request.urlopen(request) as response:self.assertEqual(response.status,200)
+            self.assertTrue(launcher.SHUTDOWN.is_set())
+        finally:server.shutdown();server.server_close();launcher.SHUTDOWN.clear()
+
 if __name__=='__main__':unittest.main()
