@@ -33,3 +33,11 @@ Browser checks passed at 360×800, 390×844, 430×932 and 844×390 (landscape). 
 The initial local build could not publish through native Sites tools. Installing Wrangler from the npm registry failed with UNABLE_TO_VERIFY_LEAF_SIGNATURE; TLS verification was not disabled. Git reads subsequently worked through Windows certificate trust, and the authenticated GitHub browser session published the existing Pages site through its established Git integration. The separate Worker, Turnstile secrets and real laptop agent still require live setup.
 
 The home-page performance values are copied from the existing local optical acceptance records (32×16: 797 ms; 64×32: 2547 ms; 128×64: 8110 ms). They do not represent web-to-PLC-to-VLC measurements.
+
+## Image challenge and shared leaderboard — 13 October 2026
+
+Four meaningful Node/SQLite checks pass in `tests/game.test.js`: source-data conservation and capacity bounds; server recalculation and exact three-attempt completion; cross-origin/name/range/token rejection; best complete round per case-insensitive nickname. The API uses a real SQLite database in the local test harness, not mocked scores. The original rig relay and agent were not changed in this update.
+
+Local browser checks completed all three challenges and verified the ranked average, high-loss image tiles and 375 px portrait / 829 px landscape document widths without horizontal page overflow. The scoreboard table supports its own horizontal scrolling on phones. The 60-second model animation is accelerated to approximately 10 seconds; the reduced-motion and skip controls calculate the same result. Images are missing-tile illustrations, not damaged-file decoder output.
+
+Two plots are generated from project records: three verified local optical image transfers, and 56 recorded dashboard FIFO occupancy samples within the first 120 session seconds. Public CSV extracts contain only chart fields. The findings distinguish measured records, design controls, noise/filtering options and limits of finite FIFO storage.
