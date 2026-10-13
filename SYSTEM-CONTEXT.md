@@ -42,7 +42,7 @@ Native GUI shows actual receiver observations even if the visitor has not chosen
 ## Packages and launchers
 Credential-free source: mobile-control-repository/packaging, agent, desktop_dashboard.
 Original GUI base modules are copied unchanged to desktop_dashboard; mobile_observer.py and mobile_receiver_dashboard.py are adapters.
-Receiver START.cmd runs portable bridge Python 3.13, detects RX by RX STAT (not fixed COM10), opens original GUI using separate bundled Python 3.12/Tk/Pillow.
+Receiver START.cmd opens the original GUI immediately using bundled Python 3.12/Tk/Pillow, then runs the portable bridge with Python 3.13 and detects RX by RX STAT (not fixed COM10). Do not open the receiver browser monitor automatically; visitors must see the original desktop dashboard. OPEN-DASHBOARD.cmd can reopen the GUI without becoming another serial owner.
 Sender START.cmd detects TX feedback; Ethernet setup may require UAC. It adds 192.168.0.10/24 without a default gateway and has a restore helper.
 Both launchers have localhost status dashboards: sender 8766, receiver 8767.
 STOP.cmd sends a local protected-header stop request to that role's launcher; only its child bridge and GUI stop.

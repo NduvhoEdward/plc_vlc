@@ -102,6 +102,16 @@ def stop_child():
             try:CHILD.wait(timeout=3)
             except subprocess.TimeoutExpired:CHILD.kill();CHILD.wait()
     CHILD=None
+def open_original_dashboard():
+    global DASHBOARD
+    if DASHBOARD is not None and DASHBOARD.poll() is None:return
+    gui_env=os.environ.copy()
+    gui_env['TCL_LIBRARY']=str(ROOT/'gui-runtime'/'tcl'/'tcl8.6')
+    gui_env['TK_LIBRARY']=str(ROOT/'gui-runtime'/'tcl'/'tk8.6')
+    with (ROOT/'logs'/'dashboard.log').open('a',encoding='utf-8') as gui_log:
+        DASHBOARD=subprocess.Popen([str(ROOT/'gui-runtime'/'pythonw.exe'),str(ROOT/'dashboard'/'mobile_receiver_dashboard.py')],cwd=ROOT/'dashboard',env=gui_env,stdout=gui_log,stderr=gui_log)
+    log('Original VLC Pixel Studio opened. It observes the bridge without opening RX USB.')
+
 def bridge(role,cfg,cred,port=None):
     global CHILD,DASHBOARD
     env=os.environ.copy()
@@ -126,15 +136,7 @@ def bridge(role,cfg,cred,port=None):
         if 'RX connected.' in line or 'Connected to relay.' in line or 'Relay connected' in line:
             with STATE_LOCK:STATE['status']='Connected to relay'
         if role=='receiver' and 'Presentation:' in line and not opened:
-            if cfg.get('receiver_dashboard')=='original':
-                if DASHBOARD is None or DASHBOARD.poll() is not None:
-                    gui_env=os.environ.copy()
-                    gui_env['TCL_LIBRARY']=str(ROOT/'gui-runtime'/'tcl'/'tcl8.6')
-                    gui_env['TK_LIBRARY']=str(ROOT/'gui-runtime'/'tcl'/'tk8.6')
-                    gui_log=(ROOT/'logs'/'dashboard.log').open('a',encoding='utf-8')
-                    DASHBOARD=subprocess.Popen([str(ROOT/'gui-runtime'/'pythonw.exe'),str(ROOT/'dashboard'/'mobile_receiver_dashboard.py')],cwd=ROOT/'dashboard',env=gui_env,stdout=gui_log,stderr=gui_log)
-                    gui_log.close()
-                    log('Original VLC Pixel Studio opened. RX serial remains owned by the receiver bridge.')
+            if cfg.get('receiver_dashboard')=='original':open_original_dashboard()
             else:webbrowser.open('http://127.0.0.1:'+str(cfg['display_port']))
             opened=True
     return CHILD.wait() if CHILD else 1
@@ -155,7 +157,9 @@ def main():
     cred=json.loads((ROOT/(role+'-credentials.json')).read_text())
     self_check()
     network_checked=False
-    http=server(cfg['launcher_port']);webbrowser.open('http://127.0.0.1:'+str(cfg['launcher_port']))
+    http=server(cfg['launcher_port'])
+    if role=='receiver' and cfg.get('receiver_dashboard')=='original':open_original_dashboard()
+    else:webbrowser.open('http://127.0.0.1:'+str(cfg['launcher_port']))
     status('Keep this window open. Ctrl+C stops this bridge.')
     try:
         while not SHUTDOWN.is_set():

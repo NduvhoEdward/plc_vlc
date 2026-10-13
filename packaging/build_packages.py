@@ -31,6 +31,7 @@ for role in ('sender','receiver'):
         shutil.copytree(gui/'Lib'/'site-packages'/'PIL',target/'Lib'/'site-packages'/'PIL',dirs_exist_ok=True,ignore=shutil.ignore_patterns('__pycache__'))
         for license_dir in (gui/'Lib'/'site-packages').glob('pillow-*.dist-info'):shutil.copytree(license_dir,target/'Lib'/'site-packages'/license_dir.name,dirs_exist_ok=True)
         (target/'python312._pth').write_text('Lib\nDLLs\nLib/site-packages\n.\n../deps\nimport site\n')
+        (folder/'OPEN-DASHBOARD.cmd').write_text('@echo off\r\ncd /d "%~dp0"\r\n"gui-runtime\\python.exe" "dashboard\\mobile_receiver_dashboard.py"\r\nif errorlevel 1 pause\r\n')
         (folder/'dashboard').mkdir(exist_ok=True)
         for module in (SOURCE/'desktop_dashboard').glob('*.py'):shutil.copy2(module,folder/'dashboard'/module.name)
         shutil.copy2(SOURCE/'SYSTEM-CONTEXT.md',folder/'SYSTEM-CONTEXT.md')
