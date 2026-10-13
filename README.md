@@ -69,3 +69,7 @@ python -m unittest discover -s tests -p test_agent.py -v
 The Cloudflare base class is stubbed in unit tests. These tests verify application logic, not Cloudflare deployment behaviour. A real Worker deployment, Turnstile join, multi-phone queue, disconnect/cancel/reconcile sequence and actual PLC → VLC transmission remain deployment acceptance steps.
 
 See `VALIDATION.md` for checks performed in this workspace.
+
+## Updating images and team details
+
+See [EDITING.md](EDITING.md) for GitHub upload steps, ready-to-copy gallery and team cards, mobile image sizes, and project text locations.
