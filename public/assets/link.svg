@@ -1,34 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="560" height="360" viewBox="0 0 560 360" preserveAspectRatio="xMidYMid meet">
-  <defs>
-    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#C6D2DF"/></pattern>
-    <linearGradient id="beam"><stop stop-color="#1D93CF" stop-opacity=".3"/><stop offset="1" stop-color="#1D93CF" stop-opacity=".02"/></linearGradient>
-  </defs>
-  <rect width="560" height="360" fill="url(#grid)"/>
-  <ellipse cx="302" cy="285" rx="172" ry="30" fill="#DDE5ED"/>
-  <path d="M45 220h112v-42h53" fill="none" stroke="#C0622A" stroke-width="12" stroke-linecap="round"/>
-  <path d="M44 198h94v-40h70" fill="none" stroke="#C0622A" stroke-width="3"/>
-  <g transform="translate(50 8) scale(.84)">
-    <path d="M181 192l122-45 106 55-121 47z" fill="#fff" stroke="#16202E" stroke-width="2"/>
-    <path d="M181 192v68l107 58v-69z" fill="#E0E8F0" stroke="#16202E" stroke-width="2"/>
-    <path d="M288 249l121-47v68l-121 48z" fill="#CAD8E4" stroke="#16202E" stroke-width="2"/>
-    <path d="M209 213v28m12-22v28m12-22v28" stroke="#C0622A" stroke-width="4"/>
-    <circle cx="318" cy="273" r="4" fill="#1D93CF"/><circle cx="338" cy="265" r="4" fill="#1D93CF"/>
-  </g>
-  <path d="M301 99L438 248l62-47-147-102z" fill="url(#beam)"/>
-  <path d="M327 160V86" stroke="#16202E" stroke-width="4"/>
-  <path d="M327 72l-38 23h76z" fill="#16202E"/>
-  <ellipse cx="327" cy="97" rx="36" ry="8" fill="#1D93CF"/>
-  <g transform="translate(-87 -27) scale(1.2)">
-    <path d="M437 216l50-25 25 60-50 25z" fill="#fff" stroke="#16202E" stroke-width="2"/>
-    <path d="M447 220l32-16 16 38-32 16z" fill="#D6ECF7" stroke="#1D93CF"/>
-    <circle cx="478" cy="263" r="3" fill="#16202E"/>
-  </g>
-  <g font-family="Segoe UI,system-ui,sans-serif" font-size="20" font-weight="500" fill="#586577">
-    <text x="44" y="259">01 / PLC INPUT</text>
-    <text x="277" y="330" text-anchor="middle">02 / GATEWAY + BUFFER</text>
-    <text x="327" y="38" text-anchor="middle">03 / LED TRANSMITTER</text>
-    <text x="481" y="330" text-anchor="middle">04 / RECEIVER</text>
-  </g>
-  <path d="M327 47v13m-50 253v-22m188 22v-15" fill="none" stroke="#94A6B8" stroke-dasharray="3 3"/>
-  <g fill="#C0622A"><circle cx="69" cy="220" r="3"/><circle cx="105" cy="220" r="3"/></g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="360" viewBox="0 0 560 360">
+<defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#C6D2DF"/></pattern><linearGradient id="light"><stop stop-color="#1D93CF" stop-opacity=".3"/><stop offset="1" stop-color="#1D93CF" stop-opacity=".04"/></linearGradient></defs>
+<rect width="560" height="360" fill="url(#grid)"/>
+<g font-family="Segoe UI,system-ui,sans-serif" fill="#586577" font-size="16" text-anchor="middle">
+<text x="111" y="42" font-size="18" font-weight="600">POWERLINE</text><text x="111" y="66">HomePlug pair</text>
+<text x="309" y="42" font-size="18" font-weight="600">TRANSMITTER</text><text x="309" y="66">ESP32 + LED</text>
+<text x="466" y="258" font-size="18" font-weight="600">RECEIVER</text><text x="466" y="281">Photodiode + ESP32</text>
+</g>
+<g stroke="#16202E" stroke-width="2.5" stroke-linejoin="round">
+<path d="M46 103h56l12 12v80H46z" fill="#fff"/><path d="M102 103v80H46v12h68v-80z" fill="#DCE6EF"/><path d="M63 91v12m20-12v12" stroke-width="5"/>
+<path d="M129 103h56l12 12v80h-68z" fill="#fff"/><path d="M185 103v80h-56v12h68v-80z" fill="#DCE6EF"/><path d="M146 91v12m20-12v12" stroke-width="5"/>
+<rect x="61" y="162" width="26" height="11" rx="2" fill="#16202E"/><rect x="144" y="162" width="26" height="11" rx="2" fill="#16202E"/>
+</g>
+<g fill="#1D93CF"><circle cx="72" cy="125" r="3"/><circle cx="72" cy="138" r="3"/><circle cx="155" cy="125" r="3"/><circle cx="155" cy="138" r="3"/></g>
+<path d="M78 207v22h83v-22M28 168h31" fill="none" stroke="#C0622A" stroke-width="5" stroke-linecap="round"/>
+<path d="M181 145q25-23 46 0m-36 8q15-15 26 0" fill="none" stroke="#1D93CF" stroke-width="3" stroke-linecap="round"/><circle cx="204" cy="160" r="3" fill="#1D93CF"/>
+<g stroke="#16202E" stroke-width="2.5" stroke-linejoin="round">
+<path d="M254 160l85-19 34 19-85 20z" fill="#327B70"/><path d="M254 160v12l34 20v-12z" fill="#245E57"/><path d="M288 180l85-20v12l-85 20z" fill="#25675F"/>
+<path d="M281 153l38-9 17 10-38 9z" fill="#DCE6EF"/>
+<path d="M319 122v27m14-27v31" fill="none" stroke-width="3"/>
+<path d="M311 121v-15a15 15 0 0 1 30 0v15z" fill="#D6ECF7"/><ellipse cx="326" cy="122" rx="15" ry="4" fill="#1D93CF"/>
+</g>
+<path d="M338 103l115 59-16 49-100-88z" fill="url(#light)"/>
+<g stroke="#16202E" stroke-width="2.5" stroke-linejoin="round">
+<path d="M407 194l72-17 42 24-72 18z" fill="#327B70"/><path d="M407 194v12l42 25v-12z" fill="#245E57"/><path d="M449 219l72-18v12l-72 18z" fill="#25675F"/>
+<path d="M456 191l32-8 16 9-32 8z" fill="#DCE6EF"/>
+<path d="M427 189v-16m13 21v-18" stroke-width="3"/><ellipse cx="434" cy="172" rx="13" ry="10" fill="#16202E"/><ellipse cx="434" cy="169" rx="8" ry="5" fill="#1D93CF"/>
+</g>
+<g font-family="Segoe UI,system-ui,sans-serif" fill="#586577" font-size="16" text-anchor="middle">
+<text x="120" y="261">Mains wiring</text><text x="220" y="211">Wi-Fi</text><text x="311" y="221">Buffer + LED driver</text><text x="397" y="104" fill="#1D93CF">Visible light</text>
+<text x="280" y="333" font-size="15">ETHERNET → POWERLINE → WI-FI → LIGHT</text>
+</g></svg>
