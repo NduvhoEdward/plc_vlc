@@ -5,7 +5,9 @@
   "scripts": {
     "preview": "node preview.mjs",
     "test": "node --experimental-loader ./tests/cloudflare-loader.mjs --test tests/*.test.js",
-    "deploy:relay": "wrangler deploy --config relay/wrangler.toml"
+    "deploy:relay": "wrangler deploy --config relay/wrangler.jsonc"
   },
-  "devDependencies": { "wrangler": "^4.0.0" }
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
 }

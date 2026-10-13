@@ -225,6 +225,8 @@ class HardwareRig:
 class Agent:
     def __init__(self, rig, ledger):
         self.rig, self.ledger = rig, ledger
+        if getattr(rig, 'split', False): rig.emit = self.send
+        self.reconcile_lock = asyncio.Lock()
         self.ws = None; self.active = None; self.task = None; self.cancel = asyncio.Event()
 
     async def send(self, data):
@@ -256,19 +258,24 @@ class Agent:
                 self.cancel.set(); await self.task
             if not await self.rig.ensure_idle():
                 raise RuntimeError('Hardware is not idle. Stop other producers and drain the rig.')
-            await self.send(dict(type='ready', simulated=self.rig.simulated)); return
+            await self.send(dict(type='ready', simulated=self.rig.simulated, requiresReceiver=getattr(self.rig, 'split', False))); return
         identifier = active['id']; saved = self.ledger.get(identifier)
         if self.active == identifier and self.task and not self.task.done():
             if active.get('cancelRequested'): self.cancel.set()
-            await self.send(dict(type='resume', id=identifier, simulated=self.rig.simulated)); return
+            await self.send(dict(type='resume', id=identifier, simulated=self.rig.simulated, requiresReceiver=getattr(self.rig, 'split', False))); return
         if saved and saved.get('result'):
-            await self.send(saved['result']); await self.send(dict(type='ready', simulated=self.rig.simulated)); return
+            await self.send(saved['result']); await self.send(dict(type='ready', simulated=self.rig.simulated, requiresReceiver=getattr(self.rig, 'split', False))); return
         # A restarted process or a lost dispatch is ambiguous. Do not replay payloads.
         if not await self.rig.ensure_idle():
             raise RuntimeError('Interrupted transfer awaiting hardware drain; no replay.')
         result = dict(type='transfer', id=identifier, status='failed', idle=True, message='Interrupted transfer reconciled; payload was not automatically resent.')
         if not saved: self.ledger.start(identifier, active['hash'])
-        self.ledger.finish(identifier, result); await self.send(result); await self.send(dict(type='ready', simulated=self.rig.simulated))
+        self.ledger.finish(identifier, result); await self.send(result); await self.send(dict(type='ready', simulated=self.rig.simulated, requiresReceiver=getattr(self.rig, 'split', False)))
+
+    async def reconcile_safe(self, data):
+        try:
+            async with self.reconcile_lock: await self.reconcile(data)
+        except Exception as error: print('Reconciliation:', str(error), flush=True)
 
     async def heartbeat(self):
         while True:
@@ -287,7 +294,11 @@ class Agent:
                     try:
                         async for message in ws:
                             data = json.loads(message)
-                            if data.get('type') == 'reconcile': await self.reconcile(data)
+                            if data.get('type') in ('receiver-status', 'receiver-armed', 'rx-record', 'rx-stats') and getattr(self.rig, 'split', False): self.rig.observe(data)
+                            elif data.get('type') == 'reconcile':
+                                if getattr(self.rig, 'split', False):
+                                    asyncio.create_task(self.reconcile_safe(data))
+                                else: await self.reconcile(data)
                             elif data.get('type') == 'cancel' and data.get('id') == self.active: self.cancel.set()
                             elif data.get('type') == 'transfer':
                                 if not re.fullmatch(r'[0-9a-f-]{36}', data.get('id', '')) or payload_hash(data.get('payload')) != data.get('hash'):
@@ -304,6 +315,7 @@ class Agent:
                             elif data.get('type') == 'error': print('Relay:', data.get('message'), flush=True)
                     finally:
                         heartbeat.cancel(); await asyncio.gather(heartbeat, return_exceptions=True); self.ws = None
+                        if getattr(self.rig, 'split', False): self.cancel.set(); self.rig.receiver_online = False
             except asyncio.CancelledError:
                 raise
             except Exception as error:
@@ -315,18 +327,24 @@ class Agent:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--hardware', action='store_true')
+    parser.add_argument('--network-tx', action='store_true', help='TX UDP feedback; separate receiver laptop')
+    parser.add_argument('--optical-rate', type=int, default=300000, help='Pacing estimate only; does not change firmware rate')
     parser.add_argument('--plc-host'); parser.add_argument('--tx-port'); parser.add_argument('--rx-port')
     args = parser.parse_args()
     url, secret = os.environ.get('IOL_AGENT_URL', ''), os.environ.get('IOL_AGENT_TOKEN', '')
     if not url.startswith('wss://') or not secret:
         parser.error('Set IOL_AGENT_URL=wss://.../agent and IOL_AGENT_TOKEN in the environment')
-    rig = HardwareRig(args) if args.hardware else SimulatedRig()
+    if args.network_tx:
+        from split_rig import NetworkRig
+        rig = NetworkRig(args)
+    else: rig = HardwareRig(args) if args.hardware else SimulatedRig()
     ledger = Ledger(Path(__file__).with_name('transfers.sqlite'))
     try: asyncio.run(Agent(rig, ledger).connect(url, secret))
     except KeyboardInterrupt: print('Agent stopped. Interrupted transfers must be reconciled before reuse.')
     finally:
         ledger.db.close()
-        if not rig.simulated:
+        if getattr(rig, 'split', False): rig.udp.close()
+        elif not rig.simulated:
             rig.tx.close(); rig.rx.close(); rig.udp.close()
 
 

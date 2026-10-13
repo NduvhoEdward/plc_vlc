@@ -1,3 +1,5 @@
+> For the current two-laptop demonstration, follow [DEMO.md](DEMO.md). Use `relay/wrangler.jsonc` and the additional `RECEIVER_TOKEN` secret. The combined-USB instructions below describe the older adapter.
+
 # Host for free on Cloudflare
 
 The static website and browser demo need only Cloudflare Pages Free and its supplied `pages.dev` address. The live relay additionally uses Workers Free and a SQLite-backed Durable Object. No custom domain, R2, paid plan, or external database is required.

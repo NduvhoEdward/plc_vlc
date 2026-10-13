@@ -1,5 +1,10 @@
 # Internet of Light
 
+## Live two-laptop demonstration
+
+See [DEMO.md](DEMO.md) for setup and rehearsal. TX now uses its existing UDP buffer feedback without USB; a separate receiving laptop forwards RX USB observations through the relay. Run `python launch_bridge.py` on each laptop with its private role-specific credential file. The mobile studio adds partial-image reception, live buffer/RX statistics, and optional sharing of verified results.
+
+
 A buildless, mobile-first project website based on the supplied ELEN4012A HTML. The public site has no paid dependencies, subscriptions, API calls, advertisements, or accounts in demo mode.
 
 ## Open locally
@@ -17,13 +22,13 @@ Use an HTTP server rather than double-clicking the HTML: the studio uses JavaScr
 - `public/index.html`: project showcase, original signal-chain SVG and buffer simulator, actual receiver circuit drawings, recorded optical results.
 - `public/send.html`: text, local photo conversion, touch drawing/undo, preview, payload download, simulated transfers and live connection UI.
 - `relay/`: Cloudflare Worker, SQLite-backed Durable Object, authenticated WebSockets, Turnstile, invitation passcode, rate limits, controller queue and lease, private transfer results, checksums, reconnect locking.
-- `agent/`: outbound Python agent; simulated agent by default; explicit UDP PLC ingress adapter with TX and RX serial feedback.
+- `agent/`: outbound Python agent; simulated agent by default; network-only TX adapter with UDP feedback and a separate RX USB bridge; the older combined-USB adapter remains available.
 - `tests/`: relay/authentication/controller tests and Python protocol/reconnect tests.
 - `HOSTING.md`: free hosting and live-rig setup.
 
 Demo mode works immediately in a browser and transmits nothing externally. Image originals are decoded and reduced on the device. Drawings and text drafts are saved in that browser's local storage when available. Uploaded originals are held in memory only.
 
-The phone studio has separate **Create & send** and **Monitor link** views. A persistent bottom bar holds preview, send, cancel and queue actions, while connection and controller status stay visible during scrolling. Phone submission first brings the actual payload into view. Monitoring shows public link/activity status while keeping received content private to its sender. Layouts handle portrait, landscape, safe areas and keyboard viewport changes.
+The phone studio has separate **Create & send** and **Monitor link** views. A persistent bottom bar holds preview, send, cancel and queue actions, while connection and controller status stay visible during scrolling. Phone submission first brings the actual payload into view. Monitoring shows public link/activity status while keeping received content private unless its sender explicitly chooses to share a verified result. Layouts handle portrait, landscape, safe areas and keyboard viewport changes.
 
 ## Limits and image format
 
@@ -40,22 +45,41 @@ For genuine full-colour JPEG transfer, larger pictures, Unicode messages, or arb
 - An active physical transfer owns the rig until an authenticated agent reports completion **and hardware idle**. Lease expiry, browser disconnect, and agent disconnect cannot unlock it.
 - Transfers time out into a cancellation request after 3 minutes. Queued content is removed after 15 minutes even if the rig remains locked. The team must restore idle feedback for a disconnected rig; the relay never guesses that it stopped.
 - Active payloads are stored in the Durable Object until completion/cancellation/expiry. Completed payloads are removed immediately; small duplicate tombstones expire after one hour.
-- Received content goes only to the submitting session, not every viewer. Viewer status uses random short-lived session IDs, never names or IP addresses.
+- Received fragments go only to the submitting session. Verified results are broadcast to connected viewers and the receiver presentation only when the submitting visitor explicitly opts in. Viewer status uses random short-lived session IDs, never names or IP addresses.
 - Browser session credentials expire after one hour, stay in memory, and are sent as a WebSocket subprotocol instead of URL query parameters. Rejoin with Turnstile after expiry.
 - Hashed IP rate counters expire after ten minutes. Agent deduplication uses a local SQLite ledger; receiver data expires from that ledger after fifteen minutes, with one-hour ID tombstones.
 - A completed receiver payload lost during a disconnect is not retained for later download; reconnect shows completion context without silently repeating it.
 
 No UI for remote modulation/duty-cycle changes is exposed because firmware bounds and variants must be verified. The website controls transfer and cancellation only. Mains-connected noise sources remain manual.
 
-## Hardware adapter assumptions
+## Hardware adapters
 
-Do not launch hardware mode while another dashboard or Serial Monitor owns either port. The laptop must physically sit upstream of the PLC adapters and reach the TX's **current reported** IP at UDP5000. Wi-Fi reachability alone does not prove that the physical PLC segment was traversed.
+The new `--network-tx` adapter uses UDP5000 status snapshots: capacity, occupancy,
+threshold, streaming and frames in flight. TX stays in existing PLC/AUTO mode;
+repeated identified records prime its 75% gate. No firmware, rate, threshold,
+source or calibration changes are made. The separate `agent/receiver.py`
+forwards actual RX serial records and read-only STAT feedback. The relay arms
+the receiver before each transfer; received records and matching payload hashes
+determine confirmation.
 
-The adapter requires the installed gateway to support `CONTROL`, `SOURCE PLC`, `START`, `AUTO`, `TX CONTROL ... plc_used=... local_used=... inflight=... pending=...` and RX `RX message:` lines. It selects `SOURCE PLC`, uses the existing `START` bypass, and returns to `AUTO` after all admitted frames drain. It never changes RATE, THRESHOLD, modulation, ADC settings, firmware, or calibration. Verify TX/RX rate matching manually beforehand. It refuses to proceed when existing queues are nonempty, repeats only missing identified records, and pauses production while TX feedback is stale.
+Cancellation stops producing new records, but an owned buffer below the AUTO
+gate may need additional duplicates to start and drain. Controls remain locked
+until fresh feedback confirms no queued bytes or frames in flight. A restarted
+sender does not automatically replay a payload or fill an unknown nonempty queue.
 
-Cancellation stops new production; already admitted records may drain. The rig is released only after queue/inflight feedback confirms idle. If idle cannot be confirmed, the agent keeps retrying and the relay stays locked. Remote STOP is deliberately not used to strand a nonempty FIFO.
+The sending laptop must sit upstream of the physical HomePlug pair. Wi-Fi
+reachability alone does not prove traversal of the powerline segment. Keep
+other producers and serial dashboards closed.
 
-The web hardware adapter has not been exercised against live boards. Existing local optical measurements do not verify this website's PLC route. Connect real hardware only after the deployment and simulated-agent flow are checked.
+The older `--hardware` adapter requires TX and RX USB and uses existing
+CONTROL/SOURCE/START/AUTO commands. See its implementation for that route.
+
+Connected-board acceptance on 13 October 2026 used the existing 280000 bit/s
+settings and network-only TX: text, 32×16, 64×32 and 128×64 reconstructed exactly.
+Image times including priming and drain were 6.281, 9.578 and 20.657 seconds.
+A deployed-cloud acceptance then verified text and a 64×32 image through
+separate authenticated bridge connections. Public browser/Turnstile joining and
+the final physical arrangement still need phone rehearsal.
 
 ## Verification
 

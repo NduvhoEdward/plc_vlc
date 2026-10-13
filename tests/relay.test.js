@@ -95,3 +95,35 @@ test('session command rate limits and expiry are enforced', async () => {
   assert.match(a.sent.at(-1).message, /rate/);
   a.meta.exp = 0; await room.webSocketMessage(a, JSON.stringify({ type: 'join' })); assert.equal(a.readyState, 3);
 });
+
+test('split rig needs a fresh receiver before accepting submissions', async () => {
+  const {room,sockets:[a,b,agent]}=await setup();
+  agent.meta.requiresReceiver=true;
+  assert.equal(room.online(),false);
+  await room.webSocketMessage(a,JSON.stringify({type:'join'}));
+  await room.webSocketMessage(a,JSON.stringify({type:'submit',id,hash,payload}));
+  assert.equal(room.model.state.active,null);
+});
+test('receiver observations are authenticated, armed, scoped and private', async () => {
+  const {room,sockets}=await setup(); const [a,b,agent]=sockets;
+  const rx=new Socket('receiver'); sockets.push(rx);
+  await room.webSocketMessage(a,JSON.stringify({type:'join'}));
+  await room.webSocketMessage(a,JSON.stringify({type:'submit',id,hash,payload}));
+  await room.webSocketMessage(rx,JSON.stringify({type:'rx-record',id,record:'Hello'}));
+  assert.ok(!agent.sent.some(s=>s.type==='rx-record'));
+  await room.webSocketMessage(rx,JSON.stringify({type:'receiver-armed',id}));
+  await room.webSocketMessage(rx,JSON.stringify({type:'rx-record',id,record:'Hello'}));
+  assert.ok(agent.sent.some(s=>s.type==='rx-record'&&s.record==='Hello'));
+  assert.ok(!b.sent.some(s=>s.record));
+  await room.webSocketMessage(rx,JSON.stringify({type:'transfer',id,status:'confirmed',received:payload,idle:true}));
+  assert.ok(room.model.state.active);
+});
+test('only explicit sharing consent publishes verified content', async () => {
+  for (const shareDisplay of [false,true]) {
+    const {room,sockets:[a,b,agent]}=await setup();
+    await room.webSocketMessage(a,JSON.stringify({type:'join'}));
+    await room.webSocketMessage(a,JSON.stringify({type:'submit',id,hash,payload,shareDisplay}));
+    await room.webSocketMessage(agent,JSON.stringify({type:'transfer',id,status:'confirmed',received:payload,idle:true}));
+    assert.equal(b.sent.some(s=>s.type==='shared-result'&&s.received?.text==='Hello'),shareDisplay);
+  }
+});

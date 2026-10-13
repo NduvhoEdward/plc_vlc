@@ -7,3 +7,26 @@ __pycache__/
 tests/browser-results/
 
 .plot-deps/
+
+.python-deps/
+.env*
+.dev.vars*
+.demo-secrets.json
+*-credentials.json
+DEMO-PASSCODE.txt
+hardware-check.json
+hardware-acceptance.json
+cloud-acceptance.json
+deployment-state.json
+
+*.log
+.service-pids.json
+*-update.zip
+
+*-private.zip
+deployment-check.json
+source-update-files.json
+
+production-cancel-check.json
+
+.tools/

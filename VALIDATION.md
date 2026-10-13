@@ -41,3 +41,8 @@ Four meaningful Node/SQLite checks pass in `tests/game.test.js`: source-data con
 Local browser checks completed all three challenges and verified the ranked average, high-loss image tiles and 375 px portrait / 829 px landscape document widths without horizontal page overflow. The scoreboard table supports its own horizontal scrolling on phones. The 60-second model animation is accelerated to approximately 10 seconds; the reduced-motion and skip controls calculate the same result. Images are missing-tile illustrations, not damaged-file decoder output.
 
 Two plots are generated from project records: three verified local optical image transfers, and 56 recorded dashboard FIFO occupancy samples within the first 120 session seconds. Public CSV extracts contain only chart fields. The findings distinguish measured records, design controls, noise/filtering options and limits of finite FIFO storage.
+
+
+## Mobile control, 13 October 2026
+
+24 unit tests passed; Wrangler relay dry run passed; a real local Cloudflare runtime passed with 15 viewers and separate authenticated sender/receiver connections. Physical AUTO-route tests verified text and images at all supported sizes. Deployed-cloud tests verified text and 64×32 image with simulated=false and matching RX payloads. Production cancellation before the 75% gate drained and returned the rig to ready. The production studio returned HTTP 200 with the new controls, and the retained game API responded with model fifo-v1. Public browser/Turnstile joining and the final independent-power arrangement require phone rehearsal. GitHub integration writes returned 403; the website was published directly to its existing Pages project, with source-update ZIP prepared for repository sync.

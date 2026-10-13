@@ -1,0 +1,29 @@
+{
+  "name": "internet-of-light-relay",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-13",
+  "workers_dev": true,
+  "vars": {
+    "ALLOWED_ORIGIN": "https://plc-vlc.pages.dev"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RIG",
+        "class_name": "RigRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "RigRoom"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "account_id": "f107d75265c540e47458872c4d865cca"
+}

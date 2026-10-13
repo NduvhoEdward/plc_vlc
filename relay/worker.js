@@ -11,7 +11,10 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: allowed ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin' } : {} });
     if (!env.SESSION_SECRET || !env.AGENT_TOKEN || !env.JOIN_PASSCODE || !env.TURNSTILE_SECRET) return json({ error: 'The relay is not configured.' }, 503);
     let identity;
-    if (path === '/agent' && request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
+    if (path === '/receiver' && request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
+      if (origin || !env.RECEIVER_TOKEN || !await equalSecret(request.headers.get('Authorization')?.replace(/^Bearer /, ''), env.RECEIVER_TOKEN)) return json({ error: 'Unauthorized.' }, 401);
+      identity = { role: 'receiver' };
+    } else if (path === '/agent' && request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
       if (origin || !await equalSecret(request.headers.get('Authorization')?.replace(/^Bearer /, ''), env.AGENT_TOKEN)) return json({ error: 'Unauthorized.' }, 401);
       identity = { role: 'agent' };
     } else {
@@ -42,7 +45,10 @@ export class RigRoom extends DurableObject {
   ids() { return new Set(this.viewers().map(ws => ws.deserializeAttachment()?.session)); }
   agent() { return this.agents()[0]; }
   info() { return this.agent()?.deserializeAttachment(); }
-  online() { return !!this.info() && Date.now() - this.info().seen < 5000; }
+  receiver() { return this.ctx.getWebSockets('receiver').find(ws => ws.readyState === 1); }
+  receiverOnline() { const info = this.receiver()?.deserializeAttachment(); return !!info && Date.now() - info.seen < 5000; }
+  receiverStatus() { if (this.agent()) send(this.agent(), { type: 'receiver-status', online: this.receiverOnline() }); }
+  online() { return !!this.info() && Date.now() - this.info().seen < 5000 && (!this.info().requiresReceiver || this.receiverOnline()); }
   async save() {
     const state = JSON.stringify(this.model.state); if (state !== this.lastSaved) { await this.ctx.storage.put('room', this.model.state); this.lastSaved = state; }
     if (this.model.state.active || this.model.state.controller) {
@@ -84,13 +90,15 @@ export class RigRoom extends DurableObject {
     }
     if (this.ctx.getWebSockets().length >= 80) return json({ error: 'The demonstration room is full.' }, 429);
     if (identity.role === 'agent' && this.agent()) return json({ error: 'An agent is already connected.' }, 409);
+    if (identity.role === 'receiver' && this.receiver()) return json({ error: 'A receiver is already connected.' }, 409);
     if (identity.role === 'viewer') {
       for (const existing of this.viewers()) if (existing.deserializeAttachment()?.session === identity.session) existing.close(1000, 'Session reconnected');
     }
     const pair = new WebSocketPair(), [client, server] = Object.values(pair);
     server.serializeAttachment({ ...identity, seen: Date.now(), ready: false, simulated: false, window: Date.now(), count: 0 });
     this.ctx.acceptWebSocket(server, [identity.role]);
-    if (identity.role === 'agent') send(server, { type: 'reconcile', active: this.model.state.active });
+    if (identity.role === 'agent') { send(server, { type: 'receiver-status', online: this.receiverOnline() }); send(server, { type: 'reconcile', active: this.model.state.active }); }
+    else if (identity.role === 'receiver') { if (this.model.state.active) send(server, { type: 'arm', id: this.model.state.active.id }); this.receiverStatus(); }
     else {
       if (this.model.state.active?.owner === identity.session) this.privateEvent(identity.session, { type: 'transfer', id: this.model.state.active.id, stage: this.model.state.active.stage, message: 'Transfer status restored; waiting for the agent.' });
       const recent = this.model.state.recent.filter(t => t.owner === identity.session).at(-1);
@@ -106,21 +114,52 @@ export class RigRoom extends DurableObject {
       const now = Date.now();
       if (identity.role === 'viewer' && identity.exp <= now) { ws.close(1008, 'Session expired'); return; }
       if (now - identity.window > 60000) { identity.window = now; identity.count = 0; }
-      if (++identity.count > (identity.role === 'agent' ? 250 : 30)) throw new Error('Message rate exceeded.');
+      if (++identity.count > (identity.role === 'receiver' ? 1200 : identity.role === 'agent' ? 500 : 30)) throw new Error('Message rate exceeded.');
       ws.serializeAttachment(identity);
       const data = JSON.parse(message);
       this.model.advance(now, this.ids());
-      if (identity.role === 'agent') {
+      if (identity.role === 'receiver') {
+        identity.seen = now; ws.serializeAttachment(identity); this.receiverStatus();
+        const active = this.model.state.active;
+        if (data.type === 'rx-stats') {
+          const stats = {};
+          for (const key of ['rate', 'good', 'crc', 'locked', 'overflows']) if (Number.isSafeInteger(data.stats?.[key]) && data.stats[key] >= 0) stats[key] = data.stats[key];
+          if (this.agent()) send(this.agent(), { type: 'rx-stats', stats });
+        } else if (data.type === 'receiver-armed') {
+          if (!active || active.id !== data.id) throw new Error('Unknown receiver transfer.');
+          identity.armed = data.id; ws.serializeAttachment(identity);
+          if (this.agent()) send(this.agent(), { type: 'receiver-armed', id: data.id });
+        } else if (data.type === 'rx-record') {
+          if (!active || active.id !== data.id || identity.armed !== data.id) throw new Error('Receiver is not armed for this transfer.');
+          if (typeof data.record !== 'string' || !/^[\x20-\x7e]{1,51}$/.test(data.record)) throw new Error('Invalid RX record.');
+          if (this.agent()) send(this.agent(), { type: 'rx-record', id: data.id, record: data.record });
+        } else throw new Error('Unsupported receiver command.');
+      } else if (identity.role === 'agent') {
         identity.seen = now; ws.serializeAttachment(identity);
         if (data.type === 'ready') {
           if (this.model.state.active) throw new Error('Reconcile the outstanding transfer before becoming ready.');
-          identity.ready = true; identity.simulated = !!data.simulated; ws.serializeAttachment(identity);
+          identity.ready = true; identity.simulated = !!data.simulated; identity.requiresReceiver = !!data.requiresReceiver; ws.serializeAttachment(identity);
         } else if (data.type === 'telemetry') {
           const telemetry = { type: 'telemetry', simulated: identity.simulated };
-          for (const name of ['throughput', 'loss', 'ber', 'snr', 'latency']) if (typeof data[name] === 'number' && Number.isFinite(data[name])) telemetry[name] = data[name];
+          for (const name of ['throughput', 'loss', 'ber', 'snr', 'latency', 'bufferUsed', 'bufferCapacity', 'bufferPercent', 'streaming', 'inflight', 'threshold', 'rxRate', 'rxGood', 'rxCrc', 'rxLocked', 'rxOverflows']) if (typeof data[name] === 'number' && Number.isFinite(data[name])) telemetry[name] = data[name];
           for (const name of ['plc', 'vlc']) if (['online', 'offline', 'simulated', 'unknown'].includes(data[name])) telemetry[name] = data[name];
-          this.broadcast(telemetry);
+          this.broadcast(telemetry); this.receiverStatus();
           if (this.model.state.active?.cancelRequested) send(ws, { type: 'cancel', id: this.model.state.active.id });
+         } else if (data.type === 'arm-receiver') {
+          if (data.id !== this.model.state.active?.id || !this.receiverOnline()) throw new Error('Receiver unavailable.');
+          send(this.receiver(), { type: 'arm', id: data.id });
+        } else if (data.type === 'progress' || data.type === 'partial') {
+          const a = this.model.state.active;
+          if (!a || data.id !== a.id) throw new Error('Unknown progress transfer.');
+          if (data.type === 'progress') {
+            if (!Number.isSafeInteger(data.receivedRecords) || !Number.isSafeInteger(data.totalRecords) || data.totalRecords < 1 || data.totalRecords > 44 || data.receivedRecords < 0 || data.receivedRecords > data.totalRecords) throw new Error('Invalid progress.');
+            this.privateEvent(a.owner, { type: 'progress', id: a.id, receivedRecords: data.receivedRecords, totalRecords: data.totalRecords });
+          } else {
+            if (a.payload?.kind !== 'image' || data.width !== a.payload.width || data.height !== a.payload.height) throw new Error('Invalid partial dimensions.');
+            const partial = validatePayload({ kind: 'image', width: data.width, height: data.height, data: data.data });
+            const mask = validatePayload({ kind: 'image', width: data.width, height: data.height, data: data.mask });
+            this.privateEvent(a.owner, { type: 'partial', id: a.id, ...partial, mask: mask.data });
+          }
         } else if (data.type === 'transfer') {
           const a = this.model.state.active; if (!a || data.id !== a.id) throw new Error('Unknown transfer.');
           if (FINAL.includes(data.status)) {
@@ -132,13 +171,16 @@ export class RigRoom extends DurableObject {
             }
             const event = { type: 'transfer', id: a.id, status: data.status, received, simulated: identity.simulated, integrity: received ? 'SHA-256 payload match; agent RX verification' : undefined,
               durationMs: now - a.started, message: typeof data.message === 'string' ? data.message.slice(0, 200) : undefined };
-            const owner = a.owner; this.model.finish(data, now); identity.ready = true; ws.serializeAttachment(identity); this.privateEvent(owner, event);
+            const owner = a.owner;
+            if (received && a.shareDisplay === true) { const shared = { ...event, type: 'shared-result' }; this.broadcast(shared); if (this.receiver()) send(this.receiver(), shared); }
+            if (this.receiver()) send(this.receiver(), { type: 'disarm', id: a.id });
+            this.model.finish(data, now); identity.ready = true; ws.serializeAttachment(identity); this.privateEvent(owner, event);
           } else {
             this.model.stage(data); this.privateEvent(a.owner, { type: 'transfer', id: a.id, stage: data.stage, message: typeof data.message === 'string' ? data.message.slice(0, 200) : 'Agent reported progress.' });
           }
         } else if (data.type === 'resume') {
           if (data.id !== this.model.state.active?.id) throw new Error('Unknown resume.');
-          identity.ready = false; identity.simulated = !!data.simulated; ws.serializeAttachment(identity);
+          identity.ready = false; identity.simulated = !!data.simulated; identity.requiresReceiver = !!data.requiresReceiver; ws.serializeAttachment(identity);
         } else throw new Error('Unsupported agent command.');
       } else {
         const id = identity.session;
@@ -165,13 +207,14 @@ export class RigRoom extends DurableObject {
   async webSocketError(ws) { await this.closed(ws); }
   async closed(ws) {
     try { ws.close(1000, 'Connection closed'); } catch { /* already closed */ }
+    this.receiverStatus();
     this.model.advance(Date.now(), this.ids()); await this.save(); this.roomEvent();
   }
   async alarm() {
     const now = Date.now();
     for (const ws of this.ctx.getWebSockets()) {
       const attachment = ws.deserializeAttachment();
-      if ((attachment.role === 'viewer' && attachment.exp <= now) || (attachment.role === 'agent' && now - attachment.seen > 15000)) ws.close(1008, 'Connection expired');
+      if ((attachment.role === 'viewer' && attachment.exp <= now) || (['agent', 'receiver'].includes(attachment.role) && now - attachment.seen > 15000)) ws.close(1008, 'Connection expired');
     }
     this.model.advance(now, this.ids());
     if (this.model.state.active?.cancelRequested && this.agent()) send(this.agent(), { type: 'cancel', id: this.model.state.active.id });

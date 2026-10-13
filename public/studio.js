@@ -25,6 +25,26 @@ function renderPixels(canvas, p) {
   pixels.forEach((v, i) => { image.data[i * 4] = image.data[i * 4 + 1] = image.data[i * 4 + 2] = v ? 22 : 255; image.data[i * 4 + 3] = 255; });
   ctx.putImageData(image, 0, 0);
 }
+
+function renderPartial(m) {
+  const clean = validatePayload({ kind: 'image', width: m.width, height: m.height, data: m.data });
+  const mask = unpackPixels(validatePayload({ ...clean, data: m.mask }));
+  const pixels = unpackPixels(clean), c = $('received-pixels'); c.width = clean.width; c.height = clean.height;
+  const x = c.getContext('2d'), image = x.createImageData(c.width, c.height);
+  pixels.forEach((p,i) => { const v = mask[i] ? p ? 22 : 255 : 135; image.data.set([v,v,v,255],i*4); });
+  x.putImageData(image,0,0); c.hidden = false; $('receiver-empty').hidden = true;
+  $('receiver-meta').textContent = 'PARTIAL · gray pixels have not arrived · awaiting verification';
+}
+function showShared(m) {
+  try {
+    const p = validatePayload(m.received); $('shared-empty').hidden = true;
+    $('shared-text').hidden = p.kind !== 'text'; $('shared-pixels').hidden = p.kind !== 'image';
+    if (p.kind === 'text') $('shared-text').textContent = p.text;
+    else renderPixels($('shared-pixels'),p);
+    $('shared-meta').textContent = (m.simulated ? 'SIMULATED · ' : 'VERIFIED · ') + (m.durationMs / 1000).toFixed(1) + ' seconds · shared with permission';
+  } catch { /* Ignore malformed display content. */ }
+}
+
 function imagePayload(input) {
   const width = +$('resolution').value, height = width / 2, canvas = document.createElement('canvas');
   canvas.width = width; canvas.height = height;
@@ -181,9 +201,13 @@ function switchMode(next) {
   $('monitor-activity').textContent = next === 'demo' ? 'No hardware connected. Demo transfers are simulated.' : 'Rig offline. Connect to the relay to view measured activity.';
 }
 $('demo-mode').onclick = () => switchMode('demo'); $('live-mode').onclick = () => switchMode('live');
-function clearTelemetry() { lastTelemetry = 0; for (const name of ['throughput', 'loss', 'ber', 'snr', 'latency', 'links']) $(`metric-${name}`).textContent = 'Unavailable'; $('telemetry-tag').textContent = 'No measurements'; $('last-update').textContent = 'Waiting for measured telemetry.'; $('monitor-plc').textContent = 'Unavailable'; $('monitor-vlc').textContent = 'Unavailable'; }
+function clearTelemetry() { lastTelemetry = 0; for (const name of ['bufferPercent','bufferUsed','bufferCapacity','threshold','rxRate','rxGood','rxCrc','rxLocked','rxOverflows']) $('twin-' + name).textContent = 'Unavailable'; $('twin-buffer').value = 0; $('twin-streaming').textContent = 'Unavailable'; for (const name of ['throughput', 'loss', 'ber', 'snr', 'latency', 'links']) $(`metric-${name}`).textContent = 'Unavailable'; $('telemetry-tag').textContent = 'No measurements'; $('last-update').textContent = 'Waiting for measured telemetry.'; $('monitor-plc').textContent = 'Unavailable'; $('monitor-vlc').textContent = 'Unavailable'; }
 function showTelemetry(m) {
-  lastTelemetry = Date.now(); $('telemetry-tag').textContent = m.simulated ? 'Simulated' : 'Measured';
+  lastTelemetry = Date.now();
+  for (const name of ['bufferPercent', 'bufferUsed', 'bufferCapacity', 'threshold', 'rxRate', 'rxGood', 'rxCrc', 'rxLocked', 'rxOverflows']) $('twin-' + name).textContent = Number.isFinite(m[name]) ? m[name] : 'Unavailable';
+  $('twin-buffer').value = Number.isFinite(m.bufferPercent) ? m.bufferPercent : 0;
+  $('twin-streaming').textContent = m.streaming === 1 ? 'Transmitting' : m.streaming === 0 ? 'Idle / priming' : 'Unavailable';
+  $('telemetry-tag').textContent = m.simulated ? 'Simulated' : 'Measured';
   for (const [name, unit] of Object.entries({ throughput: ' kbit/s', loss: '%', ber: '', snr: ' dB', latency: ' ms' })) {
     const value = m[name]; $(`metric-${name}`).textContent = typeof value === 'number' && Number.isFinite(value) ? `${value}${unit}` : 'Unavailable';
   }
@@ -224,7 +248,7 @@ async function send() {
       demoTimer = setTimeout(advance, 500);
     } else {
       if (!socket || socket.readyState !== 1) throw new Error('Relay disconnected. Your draft is saved.');
-      socket.send(JSON.stringify({ type: 'submit', id: transferId, hash, payload: savedPayload }));
+      socket.send(JSON.stringify({ type: 'submit', id: transferId, hash, payload: savedPayload, shareDisplay: $('share-display').checked }));
     }
   } catch (e) { busy = false; $('send-error').textContent = e.message; syncButtons(); }
 }
@@ -286,7 +310,10 @@ function openSocket() {
       const position = data.queue.indexOf(session); $('turn-status').textContent = position >= 0 ? `Queue position ${position + 1}` : data.controller === session ? 'Your turn' : 'Not in queue';
       if (data.active?.owner === session) { transferId = data.active.id; busy = true; markStage(data.active.stage, data.active.message || 'Transfer in progress.'); }
       syncButtons();
-    } else if (data.type === 'telemetry') showTelemetry(data);
+    } else if (data.type === 'shared-result') showShared(data);
+    else if (data.type === 'progress' && data.id === transferId) $('receiver-meta').textContent = 'Received ' + data.receivedRecords + ' / ' + data.totalRecords + ' records · awaiting verification';
+    else if (data.type === 'partial' && data.id === transferId) { try { renderPartial(data); } catch {} }
+    else if (data.type === 'telemetry') showTelemetry(data);
     else if (data.type === 'transfer' && data.id === transferId) {
       if (data.stage) markStage(data.stage, data.message);
       if (['confirmed', 'failed', 'cancelled'].includes(data.status)) {
@@ -311,7 +338,7 @@ function openSocket() {
 }
 setInterval(() => {
   if (mode === 'live' && room?.controller === session) $('turn-status').textContent = room.active ? 'Transfer in progress' : `${Math.max(0, Math.ceil((room.leaseUntil - Date.now()) / 1000))} s remaining`;
-  if (lastTelemetry && Date.now() - lastTelemetry > 5000) { $('telemetry-tag').textContent = 'Stale'; $('last-update').textContent = 'Telemetry is stale — last update over 5 seconds ago.'; $('monitor-plc').textContent = 'Stale'; $('monitor-vlc').textContent = 'Stale'; }
+  if (lastTelemetry && Date.now() - lastTelemetry > 5000) { for (const name of ['bufferPercent','bufferUsed','bufferCapacity','threshold','rxRate','rxGood','rxCrc','rxLocked','rxOverflows']) $('twin-' + name).textContent = 'Stale'; $('twin-streaming').textContent = 'Stale'; $('telemetry-tag').textContent = 'Stale'; $('last-update').textContent = 'Telemetry is stale — last update over 5 seconds ago.'; $('monitor-plc').textContent = 'Stale'; $('monitor-vlc').textContent = 'Stale'; }
   if (mode === 'live' && socket?.readyState === 1 && room?.online && Date.now() - (room.agentSeen || 0) > 5000) { room.online = false; $('rig-status').textContent = 'Rig offline'; $('monitor-mode').textContent = 'Rig offline'; $('monitor-activity').textContent = 'Agent telemetry stopped. Waiting for reconnection.'; syncButtons(); }
 }, 1000);
 update();

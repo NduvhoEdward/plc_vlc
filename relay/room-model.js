@@ -41,7 +41,7 @@ export class RoomModel {
     }
     if (s.active) throw new Error('The rig is busy.');
     const payload = validatePayload(data.payload);
-    s.active = { id: data.id, owner, hash: data.hash, payload, stage: 'uploaded', started: now, cancelRequested: false };
+    s.active = { id: data.id, owner, hash: data.hash, payload, shareDisplay: data.shareDisplay === true, stage: 'uploaded', started: now, cancelRequested: false };
     return { active: s.active };
   }
   stage(data) {
