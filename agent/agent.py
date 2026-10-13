@@ -319,7 +319,10 @@ class Agent:
             except asyncio.CancelledError:
                 raise
             except Exception as error:
-                print('Connection unavailable:', type(error).__name__, '— retrying', flush=True)
+                response = getattr(error, 'response', None)
+                status = getattr(response, 'status_code', None)
+                reason = {409: 'Another sender bridge is already connected. Stop the sender on the other PC or close its earlier launcher.', 401: 'Sender credential rejected. Use the current private sender package.', 403: 'Sender connection forbidden. Check relay access configuration.', 429: 'Relay connection limit reached. Wait before retrying.'}.get(status)
+                print('Connection unavailable:', reason or ('HTTP ' + str(status) if status else type(error).__name__), '- retrying', flush=True)
             attempt += 1
             await asyncio.sleep(min(30, 2 ** min(attempt, 5)))
 

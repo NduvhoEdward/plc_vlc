@@ -1,9 +1,9 @@
 import json,shutil,zipfile,hashlib,sys
 from pathlib import Path
-if len(sys.argv)!=2:raise SystemExit('Usage: python packaging/build_packages.py PRIVATE_OPERATIONAL_FOLDER')
+if len(sys.argv) not in (2,3):raise SystemExit('Usage: python packaging/build_packages.py PRIVATE_OPERATIONAL_FOLDER [OUTPUT_FOLDER_NAME]')
 ROOT=Path(sys.argv[1]).resolve()
 SOURCE=Path(__file__).resolve().parents[1]
-OUT=ROOT/'pc-packages'
+OUT=ROOT/(sys.argv[2] if len(sys.argv)==3 else 'pc-packages')
 RUNTIME=ROOT/'package-build'/'runtime'
 def copytree(source,target):
     shutil.copytree(source,target,dirs_exist_ok=True,ignore=shutil.ignore_patterns('__pycache__','*.pyc','*.pyd','bin'))
