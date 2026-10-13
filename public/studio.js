@@ -137,6 +137,7 @@ function markStage(stage, message = '') {
   if (busy && mode === 'demo') $('monitor-activity').textContent = `SIMULATED · ${$('journey').children[Math.max(0, stageIndex)].textContent}`;
 }
 function syncButtons() {
+  $('disconnect').disabled = busy;
   const controller = room?.controller === session;
   const online = !!room?.online && !!room?.ready;
   $('send').textContent = mode === 'demo' ? 'Send in demo ↗' : 'Send through PLC → VLC ↗';
@@ -184,6 +185,22 @@ function positionPhoneDock() {
 window.visualViewport?.addEventListener('resize', positionPhoneDock);
 window.visualViewport?.addEventListener('scroll', positionPhoneDock);
 document.addEventListener('focusin', positionPhoneDock); document.addEventListener('focusout', () => setTimeout(positionPhoneDock, 0));
+function showConnection(label, detail, online = false) {
+  $('join-fields').hidden = !!token;
+  $('connection-state').hidden = !token;
+  $('connection-label').textContent = label;
+  $('connection-label').classList.toggle('connection-online', online);
+  $('connection-detail').textContent = detail;
+}
+$('disconnect').onclick = () => {
+  if (busy) return;
+  clearTimeout(reconnectTimer); token = null; session = null;
+  const previous = socket; socket = null; previous?.close(1000, 'Visitor disconnected');
+  room = null; connectedOnce = false; reconnectAttempt = 0;
+  showConnection('Disconnected', '');
+  $('relay-status').textContent = 'Disconnected'; $('rig-status').textContent = 'Rig offline / unknown';
+  $('connection-error').textContent = ''; clearTelemetry(); syncButtons(); setupTurnstile();
+};
 function switchMode(next) {
   if (busy) return;
   mode = next; $('demo-mode').setAttribute('aria-pressed', next === 'demo'); $('live-mode').setAttribute('aria-pressed', next === 'live');
@@ -196,7 +213,7 @@ function switchMode(next) {
   [...$('journey').children].forEach(li => li.className = ''); stageIndex = -1;
   $('rig-status').textContent = next === 'demo' ? 'Simulated' : 'Rig offline'; $('relay-status').textContent = next === 'demo' ? 'Browser demo' : 'Not connected';
   $('role-status').textContent = next === 'demo' ? 'Demo controller' : 'Viewer'; $('turn-status').textContent = next === 'demo' ? 'No queue in demo' : 'Not in queue';
-  clearTelemetry(); setupTurnstile(); syncButtons();
+  showConnection('Disconnected', ''); clearTelemetry(); setupTurnstile(); syncButtons();
   $('monitor-mode').textContent = next === 'demo' ? 'Demo / no hardware' : 'Waiting for rig';
   $('monitor-activity').textContent = next === 'demo' ? 'No hardware connected. Demo transfers are simulated.' : 'Rig offline. Connect to the relay to view measured activity.';
 }
@@ -288,19 +305,19 @@ $('connect').onclick = async () => {
     if (!turnstileToken) throw new Error('Complete the verification first.');
     const response = await fetch(`${base}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passcode: $('passcode').value, turnstile: turnstileToken }) });
     const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not join.');
-    token = data.token; session = data.session; $('passcode').value = ''; reconnectAttempt = 0; openSocket();
+    token = data.token; session = data.session; $('passcode').value = ''; reconnectAttempt = 0; showConnection('Connecting…', 'Opening your live connection.'); openSocket();
   } catch (e) { $('connection-error').textContent = e.message; }
   finally { $('connect').disabled = false; turnstileToken = ''; if (widget !== null) window.turnstile.reset(widget); }
 };
 function openSocket() {
   if (mode !== 'live' || !token) return;
   socket?.close(); const current = new WebSocket(relayBase().replace('https:', 'wss:') + '/ws', ['iol', token]); socket = current;
-  $('relay-status').textContent = 'Connecting…';
-  current.onopen = () => { reconnectAttempt = 0; connectedOnce = true; $('relay-status').textContent = 'Connected'; $('connection-error').textContent = ''; };
+  $('relay-status').textContent = 'Connecting…'; showConnection('Connecting…', 'Connecting to the live relay.');
+  current.onopen = () => { reconnectAttempt = 0; connectedOnce = true; showConnection('Connected to relay', 'Waiting for the hardware status.', true); $('relay-status').textContent = 'Connected'; $('connection-error').textContent = ''; };
   current.onmessage = async event => {
     let data; try { data = JSON.parse(event.data); } catch { return; }
     if (data.type === 'room') {
-      room = data; $('rig-status').textContent = data.online ? data.simulated ? 'Simulated agent' : data.ready ? 'Rig online' : 'Reconciling rig' : 'Rig offline';
+      room = data; showConnection(data.online ? 'Connected · rig online' : 'Connected · rig offline', data.online ? (data.ready ? 'The rig is ready. Join the control queue to send.' : 'The rig is preparing. You can follow its status below.') : 'Your phone is connected. Waiting for the project hardware.', true); $('disconnect').disabled = busy || !!data.active && data.active.owner === session; $('rig-status').textContent = data.online ? data.simulated ? 'Simulated agent' : data.ready ? 'Rig online' : 'Reconciling rig' : 'Rig offline';
       $('monitor-mode').textContent = data.simulated ? 'Simulated agent' : data.online ? 'Measured rig' : 'Rig offline';
       const activeStage = data.active ? stages.indexOf(data.active.stage) : -1;
       $('monitor-activity').textContent = !data.online ? 'Rig offline. Last activity cannot confirm a live connection.' : data.active ? `${data.simulated ? 'SIMULATED · ' : ''}${activeStage >= 0 ? $('journey').children[activeStage].textContent : 'Transfer in progress'}` : data.ready ? 'Rig idle. Waiting for the controller.' : 'Reconciling an interrupted transfer. Controls remain locked.';
@@ -328,17 +345,17 @@ function openSocket() {
   };
   current.onclose = () => {
     if (socket !== current || mode !== 'live') return;
-    $('relay-status').textContent = 'Disconnected'; $('rig-status').textContent = 'Rig offline / unknown'; room = null; syncButtons();
+    showConnection('Reconnecting…', 'Your draft is saved. Restoring the live connection.'); $('relay-status').textContent = 'Disconnected'; $('rig-status').textContent = 'Rig offline / unknown'; room = null; syncButtons();
     $('monitor-mode').textContent = 'Disconnected'; $('monitor-activity').textContent = 'Relay disconnected. Live rig status is unknown.';
     if (busy) $('transfer-status').textContent = 'Connection lost. Transfer status will be reconciled; your draft is kept.';
     if (reconnectAttempt < 6) reconnectTimer = setTimeout(openSocket, Math.min(30000, 1000 * 2 ** reconnectAttempt++));
-    else $('connection-error').textContent = 'Reconnect using the invitation passcode. Your draft is kept.';
+    else { token = null; showConnection('Disconnected', ''); $('connection-error').textContent = 'Reconnect using the invitation passcode. Your draft is kept.'; setupTurnstile(); }
   };
   current.onerror = () => { $('connection-error').textContent = connectedOnce ? 'Relay interrupted. Reconnecting…' : 'Could not reach the relay. Check configuration or sign in again.'; };
 }
 setInterval(() => {
   if (mode === 'live' && room?.controller === session) $('turn-status').textContent = room.active ? 'Transfer in progress' : `${Math.max(0, Math.ceil((room.leaseUntil - Date.now()) / 1000))} s remaining`;
   if (lastTelemetry && Date.now() - lastTelemetry > 5000) { for (const name of ['bufferPercent','bufferUsed','bufferCapacity','threshold','rxRate','rxGood','rxCrc','rxLocked','rxOverflows']) $('twin-' + name).textContent = 'Stale'; $('twin-streaming').textContent = 'Stale'; $('telemetry-tag').textContent = 'Stale'; $('last-update').textContent = 'Telemetry is stale — last update over 5 seconds ago.'; $('monitor-plc').textContent = 'Stale'; $('monitor-vlc').textContent = 'Stale'; }
-  if (mode === 'live' && socket?.readyState === 1 && room?.online && Date.now() - (room.agentSeen || 0) > 5000) { room.online = false; $('rig-status').textContent = 'Rig offline'; $('monitor-mode').textContent = 'Rig offline'; $('monitor-activity').textContent = 'Agent telemetry stopped. Waiting for reconnection.'; syncButtons(); }
+  if (mode === 'live' && socket?.readyState === 1 && room?.online && Date.now() - (room.agentSeen || 0) > 5000) { room.online = false; showConnection('Connected · rig offline', 'Your phone is connected. Waiting for hardware telemetry.', true); $('rig-status').textContent = 'Rig offline'; $('monitor-mode').textContent = 'Rig offline'; $('monitor-activity').textContent = 'Agent telemetry stopped. Waiting for reconnection.'; syncButtons(); }
 }, 1000);
 update();
