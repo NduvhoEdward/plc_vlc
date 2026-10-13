@@ -1,0 +1,4 @@
+width,height,bytes,seconds,verified
+32,16,64,0.797,True
+64,32,256,2.547,True
+128,64,1024,8.11,True
