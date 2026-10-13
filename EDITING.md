@@ -30,7 +30,7 @@ Set `width` and `height` to the image's real dimensions so the phone layout rese
 ## Add the team
 
 1. Upload portraits to `public/assets/` in the same way. Use a square crop, approximately 600 × 600 pixels, ideally below 150 KB. Example filename: `team-firstname.webp`.
-2. Edit `public/index.html`, find the section `id="team"`, and replace the paragraph beginning **Team names, supervisor details…** with the following. Repeat the `<article>` for each member and replace all bracketed values before publishing:
+2. Edit `public/index.html`, find the section `id="team"`, and find the existing `.team-members` cards. Add a portrait `<img>` inside the appropriate card and update its `<h3>`, role or contribution. The existing team names are already published. Use this example for an additional member, replacing bracketed values before publishing:
 
 ```html
 <div class="team-members">
@@ -52,7 +52,7 @@ Remove the contact paragraph if you do not have a public project email. A portra
 
 The `id="purpose"` section holds the purpose, challenge and solution text. The `id="how"` section has the three signal-path cards. The `id="findings"` section holds measured results; add a date, test route and source whenever you change a measurement.
 
-`public/project.js` drives the short handoff illustration. Its eight slots, six-packet bursts and two-packet output steps are teaching values, not firmware settings. `public/buffer.js` drives the separate longer buffer simulator. Neither controls the rig. Do not change studio payload limits to match illustration values.
+`public/project.js` drives the short handoff illustration. Its eight slots, six-packet bursts and two-packet output steps are teaching values, not firmware settings. `public/buffer.js` drives the image-loss challenge; `public/simulation.js` holds its shared browser/server calculation. `functions/api/game.js` records ranked rounds in the bound Cloudflare D1 database. Neither game controls the rig. Do not change studio payload limits to match illustration values.
 
 ## Preview before publishing
 

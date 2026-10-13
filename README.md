@@ -4,7 +4,7 @@ A buildless, mobile-first project website based on the supplied ELEN4012A HTML. 
 
 ## Open locally
 
-Double-click `launch-preview.cmd` on this computer, then visit `http://127.0.0.1:4173`. On another computer install Node.js 22 or later, then run:
+Double-click `launch-preview.cmd` on this computer, then visit `http://127.0.0.1:4173`. On another computer install Node.js 22.13 or later, then run:
 
 ```powershell
 node preview.mjs
@@ -73,3 +73,13 @@ See `VALIDATION.md` for checks performed in this workspace.
 ## Updating images and team details
 
 See [EDITING.md](EDITING.md) for GitHub upload steps, ready-to-copy gallery and team cards, mobile image sizes, and project text locations.
+
+## Shared image-loss challenge
+
+The homepage now offers practice and ranked rounds. The same calm, busy and harsh model traces are used for every player. Scores are calculated again in `functions/api/game.js`, then the average of all three attempts enters the shared top-20 board. The game uses Cloudflare Pages Functions with the free-plan D1 database binding `GAME_DB`, configured in `wrangler.jsonc`. It is separate from the live rig relay; no hardware or agent secret is used.
+
+Nicknames are public, limited to 24 characters, and rendered as text. Unfinished rounds do not appear. Attempts must be sequential, repeat submissions are idempotent, and capacity values are validated. A daily hashed network key limits starts to 100 per network/day; old rows are cleaned up after 30 days. This is an educational scoreboard, not an authenticated competition. The server recomputes scores but does not prove that a human watched the animation.
+
+`node preview.mjs` uses an in-memory SQLite test database; it never modifies the online scoreboard. Node.js 22.13 or later is required for that preview. Run `node --test tests/game.test.js` for the scoring and API checks.
+
+The Wits crest comes from the university's official coat-of-arms page. Missing tiles illustrate unavailable model data; real corrupted image files may fail decoding completely. Recorded performance plots are separate from simulation and include downloadable data and test context. Regenerate them from the original local test folders with `plot_results.py` and Matplotlib (`pip install --target .plot-deps matplotlib`).

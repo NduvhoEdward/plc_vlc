@@ -121,3 +121,9 @@ Record one real text transfer and one image transfer reconstructed from RX. Then
 Use one demonstration room, small packed images, a modest audience, and run the laptop agent only during demonstrations. Watch usage in your Cloudflare dashboard. The UI does not promise unlimited live viewers. The static home page and browser demo remain independent of the relay if its quota is exhausted or the laptop is offline.
 
 For an entirely static alternative, the same `public/` directory can be hosted on GitHub Pages, but update the relay's allowed origin accordingly. The supplied design uses relative links and does not need a custom domain.
+
+## Shared leaderboard
+
+The existing Pages project now has a D1 binding in `wrangler.jsonc`: `GAME_DB` → `plc-vlc-game`. Git deployments bundle `functions/api/game.js` at `/api/game`. The API creates its own table and indexes on first use. No frontend build command, paid upgrade or rig-agent connection is needed. Pages Functions and D1 use the Cloudflare free-plan quotas; exceeding a free quota can make the board unavailable until it resets, while static pages and browser practice still work. See https://developers.cloudflare.com/pages/functions/pricing/ and https://developers.cloudflare.com/d1/platform/pricing/.
+
+Keep the database identifier and binding in configuration; do not put account credentials in browser code. Nicknames and completed scores are public. The round token only authorizes that round's three choices and is held in page memory. Production and preview use the configured database, while the local preview uses an isolated in-memory database.
