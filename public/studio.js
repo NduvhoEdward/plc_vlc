@@ -160,7 +160,7 @@ function visitorNotice() {
     title=verificationNeeded ? 'One quick check' : $('connection-error').textContent ? 'Connection needs attention' : 'Checking the demonstration…';
     detail=verificationNeeded ? 'Complete the verification below to connect. Your drawing stays here.' : $('connection-error').textContent || 'You can start drawing while we connect.';
   } else if (!room.online) {
-    title='Demo temporarily paused'; detail='Ask the team to bring the rig online. You can keep drawing.'; state='paused';
+    title='Demo temporarily paused'; detail='You can keep drawing or try a simulated send while the team brings the rig online.'; state='paused';
   } else if (!canQueue(room)) {
     title='Preparing the light link'; detail='The previous message is clearing. You can keep drawing.'; state='paused';
   } else {
@@ -170,6 +170,10 @@ function visitorNotice() {
   }
   $('visitor-notice').dataset.state=state;
   $('notice-title').textContent=title; $('notice-detail').textContent=detail;
+  const alternative=$('notice-mode');
+  alternative.hidden=mode!=='demo' && !(connected && room && !room.online);
+  alternative.textContent=mode==='demo' ? 'Return to the live rig' : 'Try a practice demo';
+  alternative.disabled=busy || !!queuedSend.pending;
   $('rig-status').textContent=mode==='demo' ? 'Practice' : !connected || !room ? 'Checking…' : !room.online ? 'Paused' : !canQueue(room) ? 'Preparing' : 'Online';
   $('turn-status').textContent=busy ? 'Sending…' : waiting ? (room?.queue?.includes(session) ? 'Queue position '+(room.queue.indexOf(session)+1) : 'Saving your place…') : 'Ready when you are';
 }
@@ -259,6 +263,7 @@ function switchMode(next) {
   $('monitor-mode').textContent = next === 'demo' ? 'Demo / no hardware' : 'Waiting for rig';
   $('monitor-activity').textContent = next === 'demo' ? 'No hardware connected. Demo transfers are simulated.' : 'Rig offline. Connect to the relay to view measured activity.';
 }
+$('notice-mode').onclick = () => switchMode(mode==='demo' ? 'live' : 'demo');
 $('demo-mode').onclick = () => switchMode('demo'); $('live-mode').onclick = () => switchMode('live');
 function clearTelemetry() { lastTelemetry = 0; for (const name of ['bufferPercent','bufferUsed','bufferCapacity','threshold','rxRate','rxGood','rxCrc','rxLocked','rxOverflows']) $('twin-' + name).textContent = 'Unavailable'; $('twin-buffer').value = 0; $('twin-streaming').textContent = 'Unavailable'; for (const name of ['throughput', 'loss', 'ber', 'snr', 'latency', 'links']) $(`metric-${name}`).textContent = 'Unavailable'; $('telemetry-tag').textContent = 'No measurements'; $('last-update').textContent = 'Waiting for measured telemetry.'; $('monitor-plc').textContent = 'Unavailable'; $('monitor-vlc').textContent = 'Unavailable'; }
 function showTelemetry(m) {

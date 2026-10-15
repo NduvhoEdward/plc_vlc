@@ -91,3 +91,5 @@ QueuedSend in public/visitor-flow.js owns the pending send intent. Cancellation,
 The canvas and primary Send are first; preview and technical settings are collapsed. Hardware absence is shown as a paused demonstration, distinct from checking the phone connection. Practice remains explicitly simulated under Details. Sharing remains opt-in. No bridge, firmware, credentials or original RX dashboard ownership was changed.
 
 Guest QR target: https://hpv.selah.net.za/send . Printable sign: https://hpv.selah.net.za/visit ; PNG/SVG at /assets/studio-qr.png and /assets/studio-qr.svg. Keep the project homepage available for background information.
+
+Offline visitor alternative: the paused notice offers Try a practice demo. It retains the draft, explicitly labels simulation, and offers Return to the live rig. Mode switching stays disabled during queued or active sends.

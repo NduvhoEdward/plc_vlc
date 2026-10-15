@@ -165,3 +165,5 @@ body{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inse
  .visitor-studio .technical-details{margin-bottom:24px}
  .visitor-studio .editor,.visitor-studio .arrival-card{scroll-margin-top:135px}
 }
+
+.visitor-studio #notice-mode{margin-top:10px;min-height:44px;font-size:13px}
