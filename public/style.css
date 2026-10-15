@@ -177,6 +177,9 @@ body{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inse
 .route-node small{display:block;font-size:10px;color:var(--muted);margin-top:3px}
 .route-number{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:50%;background:var(--paper,#fff);color:var(--muted);font-size:13px}
 .route-node[data-done=true] .route-number{background:#e4f4e9;border-color:#249255;color:#176b3c}
+.route-node[data-done=true]{background:#e4f4e9;border-radius:10px;box-shadow:0 0 0 6px #e4f4e9}
+.route-node[data-done=true] strong{color:#176b3c}
+.route-node[data-active=true]{background:#dceff8;border-radius:10px;box-shadow:0 0 0 6px #dceff8;outline:2px solid #167aa0;outline-offset:6px}
 .route-node[data-active=true] .route-number{background:#167aa0;border-color:#167aa0;color:#fff;box-shadow:0 0 0 5px #167aa020}
 .route-node[data-active=true] strong{color:#126c8e}
 .route-link{flex:1;min-width:12px;text-align:center;padding-top:18px;color:var(--muted)}
