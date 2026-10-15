@@ -8,6 +8,7 @@ let session = null, room = null, turnstileToken = '', widget = null, reconnectTi
 let transferId = null, savedPayload = null, startedAt = 0, demoTimer = null, stageIndex = -1, lastTelemetry = 0;
 let workspace = 'compose', previewInView = false;
 const queuedSend = new QueuedSend();
+let verificationNeeded = false;
 let joining = false, autoConnect = true, lastRoomAt = 0, sendAttempt = 0, commandSubmitted = false;
 const phoneLayout = matchMedia('(max-width: 650px), (max-width: 950px) and (max-height: 500px)');
 const stages = ['prepared', 'uploaded', 'queued', 'accepted', 'plc', 'vlc', 'confirmed'];
@@ -156,8 +157,8 @@ function visitorNotice() {
     detail=position>=0 ? estimatedWait(room,session)+'. Keep this page open. Estimates depend on reception.' : 'Your message is saved for this send. You can cancel below.';
     state='queued';
   } else if (!connected || !room) {
-    title=$('connection-error').textContent ? 'Connection needs attention' : 'Checking the demonstration…';
-    detail=$('connection-error').textContent || 'You can start drawing while we connect.';
+    title=verificationNeeded ? 'One quick check' : $('connection-error').textContent ? 'Connection needs attention' : 'Checking the demonstration…';
+    detail=verificationNeeded ? 'Complete the verification below to connect. Your drawing stays here.' : $('connection-error').textContent || 'You can start drawing while we connect.';
   } else if (!room.online) {
     title='Demo temporarily paused'; detail='Ask the team to bring the rig online. You can keep drawing.'; state='paused';
   } else if (!canQueue(room)) {
@@ -368,7 +369,7 @@ async function setupTurnstile() {
     if (!window.turnstile) await new Promise((resolve, reject) => {
       const script = document.createElement('script'); script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; script.onload = resolve; script.onerror = () => reject(new Error('Verification could not load.')); document.head.append(script);
     });
-    if (widget === null) widget = window.turnstile.render('#turnstile-widget', { sitekey: CONFIG.turnstileSiteKey, callback: value => { turnstileToken=value; if(autoConnect && !token && mode==='live') void connectGuest(); }, 'expired-callback': () => turnstileToken = '', 'error-callback': () => { autoConnect=false;queuedSend.interrupted();$('connect').hidden=false;$('connection-error').textContent='Verification could not finish. Tap Retry connection or ask the team.';syncButtons(); } });
+    if (widget === null) widget = window.turnstile.render('#turnstile-widget', { sitekey: CONFIG.turnstileSiteKey, 'before-interactive-callback': () => { verificationNeeded=true;syncButtons(); }, 'after-interactive-callback': () => { verificationNeeded=false;syncButtons(); }, callback: value => { verificationNeeded=false;turnstileToken=value; if(autoConnect && !token && mode==='live') void connectGuest(); }, 'expired-callback': () => turnstileToken = '', 'error-callback': () => { autoConnect=false;queuedSend.interrupted();$('connect').hidden=false;$('connection-error').textContent='Verification could not finish. Tap Retry connection or ask the team.';syncButtons(); } });
     else if (autoConnect && !token) { if (turnstileToken) void connectGuest(); else window.turnstile.reset(widget); }
   } catch (e) { $('connection-error').textContent=e.message;$('connect').hidden=false;syncButtons(); }
 }
