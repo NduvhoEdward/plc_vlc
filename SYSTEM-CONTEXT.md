@@ -80,3 +80,14 @@ The new visitor address is https://hpv.selah.net.za. Hosting stays on Cloudflare
 Enable the production pages.dev redirect only after the custom domain HTTPS service works. Preserve paths/query strings and avoid redirect loops. Existing unrelated website freshness edits in mobile-control-repository remain unpublished; this task is isolated in mobile-control-domain.
 
 Deployment verified on 15 October 2026: Cloudflare custom domain is active; hpv.selah.net.za serves HTTPS; production pages.dev GET/HEAD links redirect with 302 preserving paths and query strings. Guest joining without passcode was verified in the browser, with Turnstile and signed session intact. Working source for this change is mobile-control-domain (isolated Git worktree); mobile-control-repository retains unrelated local edits and must be updated carefully before future deployments.
+
+
+## Visitor studio redesign — 15 October 2026
+
+The public studio opens in live mode with drawing selected at 128 x 64. Turnstile automatically connects the visitor; it does not acquire a control turn. A single explicit Send captures an immutable payload and sharing choice, joins the queue once and dispatches once when that visitor becomes ready controller. Never turn automatic connection into automatic queue joining or transfer replay.
+
+QueuedSend in public/visitor-flow.js owns the pending send intent. Cancellation, pre-dispatch disconnection or hardware becoming unavailable cancels that intent and keeps the draft. Already submitted transfers stay locked for the existing server reconciliation and real receiver hash plus idle confirmation. Async hashing is guarded against cancellation. Queue wait estimates are approximate (30–60 seconds per place), not measured delivery promises.
+
+The canvas and primary Send are first; preview and technical settings are collapsed. Hardware absence is shown as a paused demonstration, distinct from checking the phone connection. Practice remains explicitly simulated under Details. Sharing remains opt-in. No bridge, firmware, credentials or original RX dashboard ownership was changed.
+
+Guest QR target: https://hpv.selah.net.za/send . Printable sign: https://hpv.selah.net.za/visit ; PNG/SVG at /assets/studio-qr.png and /assets/studio-qr.svg. Keep the project homepage available for background information.
