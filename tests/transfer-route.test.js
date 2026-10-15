@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {routeLinks} from '../public/transfer-route.js';
 test('PLC paths share a reported stage and optical link pulses until verified',()=>{
  assert.deepEqual(routeLinks('waiting'),Array(5).fill('waiting'));
- assert.deepEqual(routeLinks('queued'),['done','waiting','waiting','waiting','waiting']);
- assert.deepEqual(routeLinks('plc'),['done','done','active','active','waiting']);
- assert.deepEqual(routeLinks('vlc'),['done','done','active','active','active']);
+ assert.deepEqual(routeLinks('queued'),['active','waiting','waiting','waiting','waiting']);
+ assert.deepEqual(routeLinks('plc'),['done','active','active','active','waiting']);
+ assert.deepEqual(routeLinks('vlc'),['done','active','active','active','active']);
  assert.equal(routeLinks('confirmed')[4],'active');
  assert.deepEqual(routeLinks('confirmed','confirmed'),Array(5).fill('done'));
 });

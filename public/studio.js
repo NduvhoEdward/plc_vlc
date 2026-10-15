@@ -141,7 +141,7 @@ function showRoute(stage='waiting', status='active') {
   $('transfer-route').hidden=false;
   const simulated=mode==='demo' || !!room?.simulated;
   $('route-mode').textContent=simulated ? 'SIMULATED ROUTE' : 'LIVE ROUTE';
-  const captions={waiting:'Waiting for your turn. Your message has not been sent yet.',prepared:'Preparing your message for the project.',uploaded:'Your message reached the cloud relay.',queued:'Waiting for the sender PC.',accepted:'The sender PC picked up your message.',plc:'Transferring through the PLC adapters to VLC TX.',vlc:'Transmitting light from VLC TX to VLC RX.',confirmed:'Waiting for receiver verification.'};
+  const captions={waiting:'Waiting for your turn. Your message has not been sent yet.',prepared:'Preparing your message for the project.',uploaded:'Your message is on its way to the PC.',queued:'Waiting for the sender PC.',accepted:'The sender PC picked up your message.',plc:'Transferring through the PLC adapters to VLC TX.',vlc:'Transmitting light from VLC TX to VLC RX.',confirmed:'Waiting for receiver verification.'};
   $('route-status').textContent=status==='confirmed' ? (simulated ? 'Simulated arrival complete.' : 'Received and verified. The journey is complete!') : status==='paused' ? 'Connection interrupted. Waiting for the real transfer status.' : status!=='active' ? 'Transfer stopped without a confirmed arrival.' : captions[stage] || captions.waiting;
   const links=routeLinks(stage,status);
   document.querySelectorAll('.route-link').forEach((link,i)=>{link.dataset.state=links[i];link.querySelector('small').textContent=({done:'Done',active:'Transferring',waiting:'Waiting',paused:'Paused',stopped:'Stopped'})[links[i]];});
