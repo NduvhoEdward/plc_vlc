@@ -1,4 +1,4 @@
-import { routeLinks } from './transfer-route.js';
+import { routeLinks, routeDisplayStage } from './transfer-route.js';
 import { CONFIG } from './config.js';
 import { QueuedSend, canQueue, estimatedWait } from './visitor-flow.js';
 import { packPixels, unpackPixels, validatePayload, payloadHash } from './payload.js';
@@ -135,15 +135,22 @@ drawing.onpointerup = endStroke; drawing.onpointercancel = endStroke; drawing.on
 $('eraser').onclick = () => { erased = !erased; $('eraser').setAttribute('aria-pressed', erased); };
 $('undo').onclick = () => { const old = history.pop(); if (old) dctx.putImageData(old, 0, 0); saveDraft(); update(); };
 $('clear-drawing').onclick = () => { snapshot(); fillWhite(); saveDraft(); update(); };
-let routeStage='waiting';
+let routeStage='waiting', routeStatus='active', txFeedback=null;
 function showRoute(stage='waiting', status='active') {
-  routeStage=stage;
+  routeStage=stage; routeStatus=status;
+  const displayStage=status==='active' && busy && room?.online && socket?.readyState===1 ? routeDisplayStage(stage,txFeedback,transferId) : stage;
   $('transfer-route').hidden=false;
   const simulated=mode==='demo' || !!room?.simulated;
   $('route-mode').textContent=simulated ? 'SIMULATED ROUTE' : 'LIVE ROUTE';
   const captions={waiting:'Waiting for your turn. Your message has not been sent yet.',prepared:'Preparing your message for the project.',uploaded:'Your message is on its way to the PC.',queued:'Waiting for the sender PC.',accepted:'The sender PC picked up your message.',plc:'Transferring through the PLC adapters to VLC TX.',vlc:'Transmitting light from VLC TX to VLC RX.',confirmed:'Waiting for receiver verification.'};
-  $('route-status').textContent=status==='confirmed' ? (simulated ? 'Simulated arrival complete.' : 'Received and verified. The journey is complete!') : status==='paused' ? 'Connection interrupted. Waiting for the real transfer status.' : status!=='active' ? 'Transfer stopped without a confirmed arrival.' : captions[stage] || captions.waiting;
-  const links=routeLinks(stage,status);
+  captions['vlc-tx']='VLC TX is transmitting light. Waiting for receiver records.';
+  $('route-status').textContent=status==='confirmed' ? (simulated ? 'Simulated arrival complete.' : 'Received and verified. The journey is complete!') : status==='paused' ? 'Connection interrupted. Waiting for the real transfer status.' : status!=='active' ? 'Transfer stopped without a confirmed arrival.' : captions[displayStage] || captions.waiting;
+  const links=routeLinks(displayStage,status);
+  if (status==='active') {
+    stageIndex=stages.indexOf(displayStage==='vlc-tx' ? 'vlc' : stage);
+    [...$('journey').children].forEach((li,i)=>{li.className=i<stageIndex ? 'done' : i===stageIndex ? 'current' : '';});
+    if (stage==='plc') $('transfer-status').textContent=displayStage==='vlc-tx' ? captions['vlc-tx'] : 'Travelling through the powerline link…';
+  }
   document.querySelectorAll('.route-link').forEach((link,i)=>{link.dataset.state=links[i];link.querySelector('small').textContent=({done:'Done',active:'Transferring',waiting:'Waiting',paused:'Paused',stopped:'Stopped'})[links[i]];});
   document.querySelectorAll('.route-node').forEach((node,i)=>{node.dataset.done=String(i===0 || links[i-1]==='done');});
 }
@@ -152,12 +159,11 @@ function focusRoute() {
 }
 function markStage(stage, message = '') {
   showRoute(stage);
-  stageIndex = stages.indexOf(stage);
-  [...$('journey').children].forEach((li, i) => { li.className = i < stageIndex ? 'done' : i === stageIndex ? 'current' : ''; });
   if (stage === 'confirmed') [...$('journey').children].forEach(li => li.className = 'done');
   if (message) {
     const friendly={prepared:'Preparing your message…',uploaded:'Your message reached the project.',queued:'Your message is with the sender.',accepted:'The sender picked up your message.',plc:'Travelling through the powerline link…',vlc:'Travelling across the light link…',confirmed:'It arrived through light. Look at the receiver!'};
     $('transfer-status').textContent=mode==='live' ? (friendly[stage] || message) : message;
+    if (stage==='plc' && routeDisplayStage(stage,txFeedback,transferId)==='vlc-tx' && room?.online && socket?.readyState===1) $('transfer-status').textContent='VLC TX is transmitting light. Waiting for receiver records.';
   }
   visitorNotice();
   if (busy && mode === 'demo') $('monitor-activity').textContent = `SIMULATED · ${$('journey').children[Math.max(0, stageIndex)].textContent}`;
@@ -286,6 +292,9 @@ $('demo-mode').onclick = () => switchMode('demo'); $('live-mode').onclick = () =
 function clearTelemetry() { lastTelemetry = 0; for (const name of ['bufferPercent','bufferUsed','bufferCapacity','threshold','rxRate','rxGood','rxCrc','rxLocked','rxOverflows']) $('twin-' + name).textContent = 'Unavailable'; $('twin-buffer').value = 0; $('twin-streaming').textContent = 'Unavailable'; for (const name of ['throughput', 'loss', 'ber', 'snr', 'latency', 'links']) $(`metric-${name}`).textContent = 'Unavailable'; $('telemetry-tag').textContent = 'No measurements'; $('last-update').textContent = 'Waiting for measured telemetry.'; $('monitor-plc').textContent = 'Unavailable'; $('monitor-vlc').textContent = 'Unavailable'; }
 function showTelemetry(m) {
   lastTelemetry = Date.now();
+  txFeedback=mode==='live' && busy && room?.active?.id===transferId && room.active.owner===session
+    ? {...m,id:transferId,at:lastTelemetry} : null;
+  if (busy && routeStatus==='active' && routeStage==='plc') showRoute(routeStage);
   for (const name of ['bufferPercent', 'bufferUsed', 'bufferCapacity', 'threshold', 'rxRate', 'rxGood', 'rxCrc', 'rxLocked', 'rxOverflows']) $('twin-' + name).textContent = Number.isFinite(m[name]) ? m[name] : 'Unavailable';
   $('twin-buffer').value = Number.isFinite(m.bufferPercent) ? m.bufferPercent : 0;
   $('twin-streaming').textContent = m.streaming === 1 ? 'Transmitting' : m.streaming === 0 ? 'Idle / priming' : 'Unavailable';
@@ -316,7 +325,7 @@ function complete(result, simulated = false) {
 }
 async function send(intent) {
   if (!intent?.payload || busy) return;
-  const attempt=++sendAttempt;commandSubmitted=false;
+  const attempt=++sendAttempt;commandSubmitted=false;txFeedback=null;
   busy = true; syncButtons(); $('send-error').textContent = ''; $('receiver-meta').textContent = '';
   $('received-text').hidden = true; $('received-pixels').hidden = true; $('receiver-empty').hidden = false;
   savedPayload = structuredClone(intent.payload); startedAt = Date.now(); transferId = intent.id;
@@ -468,6 +477,7 @@ function openSocket() {
 }
 setInterval(() => {
   visitorNotice();
+  if (busy && routeStatus==='active' && routeStage==='plc') showRoute(routeStage);
   if (lastTelemetry && Date.now() - lastTelemetry > 5000) { for (const name of ['bufferPercent','bufferUsed','bufferCapacity','threshold','rxRate','rxGood','rxCrc','rxLocked','rxOverflows']) $('twin-' + name).textContent = 'Stale'; $('twin-streaming').textContent = 'Stale'; $('telemetry-tag').textContent = 'Stale'; $('last-update').textContent = 'Telemetry is stale — last update over 5 seconds ago.'; $('monitor-plc').textContent = 'Stale'; $('monitor-vlc').textContent = 'Stale'; }
   if (mode === 'live' && socket?.readyState === 1 && room?.online && performance.now() - lastRoomAt > 5000) { room.online = false; if(busy)showRoute(routeStage,'paused'); showConnection('Connected · rig offline', 'Your phone is connected. Waiting for hardware telemetry.', true); $('rig-status').textContent = 'Rig offline'; $('monitor-mode').textContent = 'Rig offline'; $('monitor-activity').textContent = 'Agent telemetry stopped. Waiting for reconnection.'; syncButtons(); }
 }, 1000);
