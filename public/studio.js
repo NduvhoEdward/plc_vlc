@@ -1,4 +1,5 @@
 import { CONFIG } from './config.js';
+import { formatControlTurn } from './control-turn.js';
 import { packPixels, unpackPixels, validatePayload, payloadHash } from './payload.js';
 const $ = id => document.getElementById(id);
 const tabs = [...document.querySelectorAll('[role=tab]')];
@@ -324,7 +325,7 @@ function openSocket() {
       $('mode-title').textContent = data.simulated ? 'Live relay · simulated laptop agent' : 'Live mode — physical rig';
       $('mode-description').textContent = data.simulated ? 'The relay is real; hardware stages and receiver results are simulated.' : 'Only hardware acknowledgements can confirm a real transfer.';
       $('role-status').textContent = data.controller === session ? 'Controller' : 'Viewer';
-      const position = data.queue.indexOf(session); $('turn-status').textContent = position >= 0 ? `Queue position ${position + 1}` : data.controller === session ? 'Your turn' : 'Not in queue';
+      $('turn-status').textContent = formatControlTurn(room, session);
       if (data.active?.owner === session) { transferId = data.active.id; busy = true; markStage(data.active.stage, data.active.message || 'Transfer in progress.'); }
       syncButtons();
     } else if (data.type === 'shared-result') showShared(data);
@@ -354,7 +355,7 @@ function openSocket() {
   current.onerror = () => { $('connection-error').textContent = connectedOnce ? 'Relay interrupted. Reconnecting…' : 'Could not reach the relay. Check configuration or sign in again.'; };
 }
 setInterval(() => {
-  if (mode === 'live' && room?.controller === session) $('turn-status').textContent = room.active ? 'Transfer in progress' : `${Math.max(0, Math.ceil((room.leaseUntil - Date.now()) / 1000))} s remaining`;
+  if (mode === 'live' && room) $('turn-status').textContent = formatControlTurn(room, session);
   if (lastTelemetry && Date.now() - lastTelemetry > 5000) { for (const name of ['bufferPercent','bufferUsed','bufferCapacity','threshold','rxRate','rxGood','rxCrc','rxLocked','rxOverflows']) $('twin-' + name).textContent = 'Stale'; $('twin-streaming').textContent = 'Stale'; $('telemetry-tag').textContent = 'Stale'; $('last-update').textContent = 'Telemetry is stale — last update over 5 seconds ago.'; $('monitor-plc').textContent = 'Stale'; $('monitor-vlc').textContent = 'Stale'; }
   if (mode === 'live' && socket?.readyState === 1 && room?.online && Date.now() - (room.agentSeen || 0) > 5000) { room.online = false; showConnection('Connected · rig offline', 'Your phone is connected. Waiting for hardware telemetry.', true); $('rig-status').textContent = 'Rig offline'; $('monitor-mode').textContent = 'Rig offline'; $('monitor-activity').textContent = 'Agent telemetry stopped. Waiting for reconnection.'; syncButtons(); }
 }, 1000);
