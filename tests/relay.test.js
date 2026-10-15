@@ -147,8 +147,8 @@ test('passcode enforcement can be restored without weakening device credentials'
   assert.equal((await room.fetch(request)).status, 401);
 });
 test('custom and original website origins are allowed but lookalikes are rejected', async () => {
-  const env = { ALLOWED_ORIGIN: 'https://plc-vlc.pages.dev', ALLOWED_ORIGINS: 'https://plc-vlc.pages.dev,https://hpv.selah.net.za', REQUIRE_PASSCODE: 'false', SESSION_SECRET: 's', AGENT_TOKEN: 'a', TURNSTILE_SECRET: 't' };
-  for (const origin of ['https://plc-vlc.pages.dev', 'https://hpv.selah.net.za']) {
+  const env = { ALLOWED_ORIGIN: 'https://plc-vlc.pages.dev', ALLOWED_ORIGINS: 'https://plc-vlc.pages.dev,https://hpv.selah.net.za,https://lightlink.selah.net.za', REQUIRE_PASSCODE: 'false', SESSION_SECRET: 's', AGENT_TOKEN: 'a', TURNSTILE_SECRET: 't' };
+  for (const origin of ['https://plc-vlc.pages.dev', 'https://hpv.selah.net.za', 'https://lightlink.selah.net.za']) {
     const response = await worker.fetch(new Request('https://relay/join', { method: 'OPTIONS', headers: { Origin: origin } }), env);
     assert.equal(response.status, 204); assert.equal(response.headers.get('Access-Control-Allow-Origin'), origin);
   }
