@@ -154,7 +154,7 @@ function showRoute(stage='waiting', status='active') {
   document.querySelectorAll('.route-link').forEach((link,i)=>{link.dataset.state=links[i];link.querySelector('small').textContent=({done:'Done',active:'Transferring',forwarding:'PLC feed',waiting:'Waiting',paused:'Paused',stopped:'Stopped'})[links[i]];});
   const activeNode=routeActiveNode(displayStage,status);
   document.querySelectorAll('.route-node').forEach((node,i)=>{
-    node.dataset.done=String(i===0 || links[i-1]==='done');
+    node.dataset.done=String(i===0 || (activeNode>=0 && i<activeNode) || links[i-1]==='done');
     node.dataset.active=String(i===activeNode);
     if(i===activeNode) node.setAttribute('aria-current','step'); else node.removeAttribute('aria-current');
   });

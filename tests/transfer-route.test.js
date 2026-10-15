@@ -43,6 +43,7 @@ test('telemetry updates the displayed route without an RX stage event and never 
  assert.equal(get('journey').children[5].className,'current');
  assert.equal(nodes[4].dataset.active,'true');
  assert.equal(nodes[2].dataset.active,'false');
+ assert.deepEqual(nodes.map(node=>node.dataset.done),['true','true','true','true','false','false','false']);
  vm.runInContext("showTelemetry({streaming:0,plc:'online'})",context);
  assert.equal(links[4].dataset.state,'waiting');
  vm.runInContext("showRoute('plc','stopped'); showTelemetry({streaming:1,plc:'online'})",context);
