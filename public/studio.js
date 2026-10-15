@@ -3,7 +3,7 @@ import { formatControlTurn } from './control-turn.js';
 import { packPixels, unpackPixels, validatePayload, payloadHash } from './payload.js';
 const $ = id => document.getElementById(id);
 const tabs = [...document.querySelectorAll('[role=tab]')];
-let mode = 'demo', tab = 'text', source = null, payload = null, busy = false, socket = null, token = null;
+let mode = 'live', tab = 'text', source = null, payload = null, busy = false, socket = null, token = null;
 let session = null, room = null, turnstileToken = '', widget = null, reconnectTimer, reconnectAttempt = 0, connectedOnce = false;
 let transferId = null, savedPayload = null, startedAt = 0, demoTimer = null, stageIndex = -1, lastTelemetry = 0;
 let workspace = 'compose', previewInView = false;
@@ -359,4 +359,5 @@ setInterval(() => {
   if (lastTelemetry && Date.now() - lastTelemetry > 5000) { for (const name of ['bufferPercent','bufferUsed','bufferCapacity','threshold','rxRate','rxGood','rxCrc','rxLocked','rxOverflows']) $('twin-' + name).textContent = 'Stale'; $('twin-streaming').textContent = 'Stale'; $('telemetry-tag').textContent = 'Stale'; $('last-update').textContent = 'Telemetry is stale — last update over 5 seconds ago.'; $('monitor-plc').textContent = 'Stale'; $('monitor-vlc').textContent = 'Stale'; }
   if (mode === 'live' && socket?.readyState === 1 && room?.online && Date.now() - (room.agentSeen || 0) > 5000) { room.online = false; showConnection('Connected · rig offline', 'Your phone is connected. Waiting for hardware telemetry.', true); $('rig-status').textContent = 'Rig offline'; $('monitor-mode').textContent = 'Rig offline'; $('monitor-activity').textContent = 'Agent telemetry stopped. Waiting for reconnection.'; syncButtons(); }
 }, 1000);
+switchMode('live');
 update();
