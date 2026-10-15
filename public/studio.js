@@ -1,4 +1,4 @@
-import { routeLinks, routeDisplayStage } from './transfer-route.js';
+import { routeLinks, routeDisplayStage, routeActiveNode } from './transfer-route.js';
 import { CONFIG } from './config.js';
 import { QueuedSend, canQueue, estimatedWait } from './visitor-flow.js';
 import { packPixels, unpackPixels, validatePayload, payloadHash } from './payload.js';
@@ -151,8 +151,13 @@ function showRoute(stage='waiting', status='active') {
     [...$('journey').children].forEach((li,i)=>{li.className=i<stageIndex ? 'done' : i===stageIndex ? 'current' : '';});
     if (stage==='plc') $('transfer-status').textContent=displayStage==='vlc-tx' ? captions['vlc-tx'] : 'Travelling through the powerline link…';
   }
-  document.querySelectorAll('.route-link').forEach((link,i)=>{link.dataset.state=links[i];link.querySelector('small').textContent=({done:'Done',active:'Transferring',waiting:'Waiting',paused:'Paused',stopped:'Stopped'})[links[i]];});
-  document.querySelectorAll('.route-node').forEach((node,i)=>{node.dataset.done=String(i===0 || links[i-1]==='done');});
+  document.querySelectorAll('.route-link').forEach((link,i)=>{link.dataset.state=links[i];link.querySelector('small').textContent=({done:'Done',active:'Transferring',forwarding:'PLC feed',waiting:'Waiting',paused:'Paused',stopped:'Stopped'})[links[i]];});
+  const activeNode=routeActiveNode(displayStage,status);
+  document.querySelectorAll('.route-node').forEach((node,i)=>{
+    node.dataset.done=String(i===0 || links[i-1]==='done');
+    node.dataset.active=String(i===activeNode);
+    if(i===activeNode) node.setAttribute('aria-current','step'); else node.removeAttribute('aria-current');
+  });
 }
 function focusRoute() {
   $('transfer-route').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});

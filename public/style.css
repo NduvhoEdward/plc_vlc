@@ -177,12 +177,16 @@ body{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inse
 .route-node small{display:block;font-size:10px;color:var(--muted);margin-top:3px}
 .route-number{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:50%;background:var(--paper,#fff);color:var(--muted);font-size:13px}
 .route-node[data-done=true] .route-number{background:#e4f4e9;border-color:#249255;color:#176b3c}
+.route-node[data-active=true] .route-number{background:#167aa0;border-color:#167aa0;color:#fff;box-shadow:0 0 0 5px #167aa020}
+.route-node[data-active=true] strong{color:#126c8e}
 .route-link{flex:1;min-width:12px;text-align:center;padding-top:18px;color:var(--muted)}
 .route-wire{display:block;height:4px;background:#d9e1e8;border-radius:4px}
 .route-link-label{display:block;font-size:9px;margin-top:9px}
 .route-link[data-state=done]{color:#176b3c}
 .route-link[data-state=done] .route-wire{background:#249255}
 .route-link[data-state=active]{color:#167aa0}
+.route-link[data-state=forwarding]{color:var(--muted)}
+.route-link[data-state=forwarding] .route-wire{background:#89aab6}
 .route-link[data-state=active] .route-wire{background:#218cb7;animation:route-pulse 1.2s ease-in-out infinite}
 .route-link[data-state=paused] .route-wire,.route-link[data-state=stopped] .route-wire{background:#bd793e}
 .route-key{display:flex;gap:20px;font-size:11px;margin:24px 0 8px;color:var(--muted)}

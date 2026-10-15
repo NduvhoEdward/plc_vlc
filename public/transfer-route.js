@@ -6,6 +6,10 @@ export function routeDisplayStage(stage, feedback, transferId, now = Date.now())
       now >= feedback.at && now - feedback.at < 3000) return 'vlc-tx';
   return stage;
 }
+export function routeActiveNode(stage, status = 'active') {
+  if (status !== 'active') return -1;
+  return {prepared:0,uploaded:1,queued:1,accepted:1,plc:2,'vlc-tx':4,vlc:4,confirmed:5}[stage] ?? -1;
+}
 export function routeLinks(stage, status = 'active') {
   if (status === 'confirmed') return Array(6).fill('done');
   const progress = {waiting:0,prepared:0,uploaded:0,queued:0,accepted:1,plc:1,'vlc-tx':1,vlc:1,confirmed:1}[stage] ?? 0;
@@ -14,7 +18,10 @@ export function routeLinks(stage, status = 'active') {
     if (stage === 'prepared' || stage === 'queued') links[0]='active';
     if (stage === 'uploaded' || stage === 'accepted') links[progress]='active';
     if (stage === 'plc') links[1]=links[2]=links[3]='active';
-    if (stage === 'vlc-tx' || stage === 'vlc' || stage === 'confirmed') links[1]=links[2]=links[3]=links[4]='active';
+    if (stage === 'vlc-tx' || stage === 'vlc' || stage === 'confirmed') {
+      links[1]=links[2]=links[3]='forwarding';
+      links[4]='active';
+    }
   } else if (progress < 6) links[progress] = status === 'paused' ? 'paused' : 'stopped';
   return links;
 }
