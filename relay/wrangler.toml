@@ -5,6 +5,8 @@ workers_dev = true
 
 [vars]
 ALLOWED_ORIGIN = "https://plc-vlc.pages.dev"
+ALLOWED_ORIGINS = "https://plc-vlc.pages.dev,https://hpv.selah.net.za"
+REQUIRE_PASSCODE = "false"
 
 [[durable_objects.bindings]]
 name = "RIG"

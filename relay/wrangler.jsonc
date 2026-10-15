@@ -4,7 +4,9 @@
   "compatibility_date": "2026-10-13",
   "workers_dev": true,
   "vars": {
-    "ALLOWED_ORIGIN": "https://plc-vlc.pages.dev"
+    "ALLOWED_ORIGIN": "https://plc-vlc.pages.dev",
+    "REQUIRE_PASSCODE": "false",
+    "ALLOWED_ORIGINS": "https://plc-vlc.pages.dev,https://hpv.selah.net.za"
   },
   "durable_objects": {
     "bindings": [

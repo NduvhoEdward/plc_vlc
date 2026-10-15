@@ -303,9 +303,9 @@ $('connect').onclick = async () => {
     const base = relayBase();
     if (!CONFIG.turnstileSiteKey) throw new Error('The project team must configure a Turnstile site key first.');
     if (!turnstileToken) throw new Error('Complete the verification first.');
-    const response = await fetch(`${base}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passcode: $('passcode').value, turnstile: turnstileToken }) });
+    const response = await fetch(`${base}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ turnstile: turnstileToken }) });
     const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not join.');
-    token = data.token; session = data.session; $('passcode').value = ''; reconnectAttempt = 0; showConnection('Connecting…', 'Opening your live connection.'); openSocket();
+    token = data.token; session = data.session; reconnectAttempt = 0; showConnection('Connecting…', 'Opening your live connection.'); openSocket();
   } catch (e) { $('connection-error').textContent = e.message; }
   finally { $('connect').disabled = false; turnstileToken = ''; if (widget !== null) window.turnstile.reset(widget); }
 };
@@ -349,7 +349,7 @@ function openSocket() {
     $('monitor-mode').textContent = 'Disconnected'; $('monitor-activity').textContent = 'Relay disconnected. Live rig status is unknown.';
     if (busy) $('transfer-status').textContent = 'Connection lost. Transfer status will be reconciled; your draft is kept.';
     if (reconnectAttempt < 6) reconnectTimer = setTimeout(openSocket, Math.min(30000, 1000 * 2 ** reconnectAttempt++));
-    else { token = null; showConnection('Disconnected', ''); $('connection-error').textContent = 'Reconnect using the invitation passcode. Your draft is kept.'; setupTurnstile(); }
+    else { token = null; showConnection('Disconnected', ''); $('connection-error').textContent = 'Join the demonstration again. Your draft is kept.'; setupTurnstile(); }
   };
   current.onerror = () => { $('connection-error').textContent = connectedOnce ? 'Relay interrupted. Reconnecting…' : 'Could not reach the relay. Check configuration or sign in again.'; };
 }

@@ -127,3 +127,31 @@ test('only explicit sharing consent publishes verified content', async () => {
     assert.equal(b.sent.some(s=>s.type==='shared-result'&&s.received?.text==='Hello'),shareDisplay);
   }
 });
+
+test('guest passcode can be disabled while Turnstile and source hostname remain mandatory', async t => {
+  const { room } = await setup();
+  room.env = { REQUIRE_PASSCODE: 'false', TURNSTILE_SECRET: 'test-turnstile', SESSION_SECRET: 'session', ALLOWED_ORIGIN: 'https://plc-vlc.pages.dev' };
+  let hostname = 'hpv.selah.net.za', success = true;
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ success, hostname }));
+  const join = () => new Request('https://relay/join', { method: 'POST', headers: { 'X-IOL-Identity': JSON.stringify({ role: 'join', origin: 'https://hpv.selah.net.za', ip: 'test' }) }, body: JSON.stringify({ turnstile: 'verified-test-token' }) });
+  const response = await room.fetch(join());
+  assert.equal(response.status, 200);
+  assert.ok((await response.json()).token);
+  success = false; assert.equal((await room.fetch(join())).status, 403);
+  success = true; hostname = 'other.test'; assert.equal((await room.fetch(join())).status, 403);
+});
+test('passcode enforcement can be restored without weakening device credentials', async () => {
+  const { room } = await setup();
+  room.env = { REQUIRE_PASSCODE: 'true', JOIN_PASSCODE: 'private' };
+  const request = new Request('https://relay/join', { method: 'POST', headers: { 'X-IOL-Identity': JSON.stringify({ role: 'join', ip: 'test' }) }, body: '{}' });
+  assert.equal((await room.fetch(request)).status, 401);
+});
+test('custom and original website origins are allowed but lookalikes are rejected', async () => {
+  const env = { ALLOWED_ORIGIN: 'https://plc-vlc.pages.dev', ALLOWED_ORIGINS: 'https://plc-vlc.pages.dev,https://hpv.selah.net.za', REQUIRE_PASSCODE: 'false', SESSION_SECRET: 's', AGENT_TOKEN: 'a', TURNSTILE_SECRET: 't' };
+  for (const origin of ['https://plc-vlc.pages.dev', 'https://hpv.selah.net.za']) {
+    const response = await worker.fetch(new Request('https://relay/join', { method: 'OPTIONS', headers: { Origin: origin } }), env);
+    assert.equal(response.status, 204); assert.equal(response.headers.get('Access-Control-Allow-Origin'), origin);
+  }
+  assert.equal((await worker.fetch(new Request('https://relay/join', { method: 'OPTIONS', headers: { Origin: 'https://hpv.selah.net.za.evil.test' } }), env)).status, 403);
+  assert.equal((await worker.fetch(new Request('https://relay/agent', { headers: { Upgrade: 'websocket', Authorization: 'Bearer wrong' } }), env)).status, 401);
+});

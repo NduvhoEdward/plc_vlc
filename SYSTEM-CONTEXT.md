@@ -11,7 +11,7 @@ Sender PC → Ethernet → HomePlug pair / powerline → TX network endpoint 192
 TX uses its existing HomePlug AP connection. This implementation detail belongs in technical handover only.
 Both PCs make outbound authenticated WebSocket connections to https://internet-of-light-relay.nduvho-ramashia.workers.dev.
 Website: https://plc-vlc.pages.dev ; GitHub: NduvhoEdward/plc_vlc.
-The sender uses /agent, receiver /receiver, visitors /ws after passcode and Turnstile verification.
+The sender uses /agent, receiver /receiver, visitors /ws after Turnstile verification (guest passcode is currently disabled).
 
 ## Critical ownership rules
 1. Exactly ONE sender bridge may own the relay /agent role. A second connection receives HTTP 409.
@@ -70,3 +70,11 @@ Check Tk/Pillow using the receiver package's GUI runtime; bridge self-check uses
 Test /events with duplicate/missing/out-of-order optical records. Missing raw events must not be treated as complete reception.
 Do not use demo/synthetic data as evidence of physical optical success.
 After any physical changes, test short text and a 32x16 image and verify RX hash plus idle hardware.
+
+## Guest access and custom domain — 15 October 2026
+
+The user requested guest passcode removal to reduce friction. REQUIRE_PASSCODE=false disables only guest passcode checking; Turnstile, signed visitor sessions, queue limits and private sender/receiver credentials remain required. JOIN_PASSCODE is retained privately for possible restoration; restoring it also requires restoring the frontend input.
+
+The new visitor address is https://hpv.selah.net.za. Hosting stays on Cloudflare Pages (plc-vlc project); Vercel remains authoritative DNS for selah.net.za. The hpv CNAME points to plc-vlc.pages.dev; do not move nameservers or the main Selah site. The relay allows both exact origins during transition and verifies Turnstile against the joining origin hostname. Sender and receiver URLs/tokens are unchanged; packages do not need replacing for guest access/domain changes.
+
+Enable the production pages.dev redirect only after the custom domain HTTPS service works. Preserve paths/query strings and avoid redirect loops. Existing unrelated website freshness edits in mobile-control-repository remain unpublished; this task is isolated in mobile-control-domain.

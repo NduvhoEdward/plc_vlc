@@ -4,12 +4,14 @@ import { payloadHash, validatePayload } from '../public/payload.js';
 import { boundedJSON, equalSecret, signSession, verifySession } from './auth.js';
 const json = (data, status = 200) => Response.json(data, { status });
 const send = (ws, data) => { try { ws.send(JSON.stringify(data)); } catch { /* Closed sockets are pruned by the runtime. */ } };
+export const guestPasscodeRequired = env => env.REQUIRE_PASSCODE !== 'false';
+export const allowedOrigins = env => [...new Set([env.ALLOWED_ORIGIN, ...(env.ALLOWED_ORIGINS || '').split(',')].map(value => value?.trim()).filter(Boolean))];
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin'), path = new URL(request.url).pathname;
-    const allowed = origin === env.ALLOWED_ORIGIN;
+    const allowed = allowedOrigins(env).includes(origin);
     if (request.method === 'OPTIONS') return new Response(null, { status: allowed ? 204 : 403, headers: allowed ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Vary': 'Origin' } : {} });
-    if (!env.SESSION_SECRET || !env.AGENT_TOKEN || !env.JOIN_PASSCODE || !env.TURNSTILE_SECRET) return json({ error: 'The relay is not configured.' }, 503);
+    if (!env.SESSION_SECRET || !env.AGENT_TOKEN || (guestPasscodeRequired(env) && !env.JOIN_PASSCODE) || !env.TURNSTILE_SECRET) return json({ error: 'The relay is not configured.' }, 503);
     let identity;
     if (path === '/receiver' && request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
       if (origin || !env.RECEIVER_TOKEN || !await equalSecret(request.headers.get('Authorization')?.replace(/^Bearer /, ''), env.RECEIVER_TOKEN)) return json({ error: 'Unauthorized.' }, 401);
@@ -19,7 +21,7 @@ export default {
       identity = { role: 'agent' };
     } else {
       if (!allowed) return json({ error: 'Origin not allowed.' }, 403);
-      if (path === '/join' && request.method === 'POST') identity = { role: 'join', ip: request.headers.get('CF-Connecting-IP') || 'unknown' };
+      if (path === '/join' && request.method === 'POST') identity = { role: 'join', origin, ip: request.headers.get('CF-Connecting-IP') || 'unknown' };
       else if (path === '/ws' && request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
         const protocols = (request.headers.get('Sec-WebSocket-Protocol') || '').split(',').map(v => v.trim());
         if (protocols[0] !== 'iol') return json({ error: 'Invalid protocol.' }, 400);
@@ -80,11 +82,11 @@ export class RigRoom extends DurableObject {
         if (!await this.ctx.storage.getAlarm()) await this.ctx.storage.setAlarm(now + 600000);
         if (rate.count > 5) return json({ error: 'Too many join attempts. Wait one minute.' }, 429);
         const body = await boundedJSON(request);
-        if (!await equalSecret(body.passcode, this.env.JOIN_PASSCODE)) return json({ error: 'Incorrect invitation passcode.' }, 401);
+        if (guestPasscodeRequired(this.env) && !await equalSecret(body.passcode, this.env.JOIN_PASSCODE)) return json({ error: 'Incorrect invitation passcode.' }, 401);
         if (typeof body.turnstile !== 'string' || body.turnstile.length > 2048) return json({ error: 'Complete verification.' }, 400);
         const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: new URLSearchParams({ secret: this.env.TURNSTILE_SECRET, response: body.turnstile, remoteip: identity.ip }) });
         const verified = await response.json();
-        if (!verified.success || verified.hostname !== new URL(this.env.ALLOWED_ORIGIN).hostname) return json({ error: 'Verification failed. Try again.' }, 403);
+        if (!verified.success || verified.hostname !== new URL(identity.origin || this.env.ALLOWED_ORIGIN).hostname) return json({ error: 'Verification failed. Try again.' }, 403);
         const session = crypto.randomUUID(); return json({ session, token: await signSession(session, this.env.SESSION_SECRET) });
       } catch { return json({ error: 'Invalid join request.' }, 400); }
     }
