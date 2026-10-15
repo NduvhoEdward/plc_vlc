@@ -1,3 +1,4 @@
+import { routeLinks } from './transfer-route.js';
 import { CONFIG } from './config.js';
 import { QueuedSend, canQueue, estimatedWait } from './visitor-flow.js';
 import { packPixels, unpackPixels, validatePayload, payloadHash } from './payload.js';
@@ -134,7 +135,23 @@ drawing.onpointerup = endStroke; drawing.onpointercancel = endStroke; drawing.on
 $('eraser').onclick = () => { erased = !erased; $('eraser').setAttribute('aria-pressed', erased); };
 $('undo').onclick = () => { const old = history.pop(); if (old) dctx.putImageData(old, 0, 0); saveDraft(); update(); };
 $('clear-drawing').onclick = () => { snapshot(); fillWhite(); saveDraft(); update(); };
+let routeStage='waiting';
+function showRoute(stage='waiting', status='active') {
+  routeStage=stage;
+  $('transfer-route').hidden=false;
+  const simulated=mode==='demo' || !!room?.simulated;
+  $('route-mode').textContent=simulated ? 'SIMULATED ROUTE' : 'LIVE ROUTE';
+  const captions={waiting:'Waiting for your turn. Your message has not been sent yet.',prepared:'Preparing your message for the project.',uploaded:'Your message reached the cloud relay.',queued:'Waiting for the sender PC.',accepted:'The sender PC picked up your message.',plc:'Transferring through the PLC adapters to VLC TX.',vlc:'Transmitting light from VLC TX to VLC RX.',confirmed:'Waiting for receiver verification.'};
+  $('route-status').textContent=status==='confirmed' ? (simulated ? 'Simulated arrival complete.' : 'Received and verified. The journey is complete!') : status==='paused' ? 'Connection interrupted. Waiting for the real transfer status.' : status!=='active' ? 'Transfer stopped without a confirmed arrival.' : captions[stage] || captions.waiting;
+  const links=routeLinks(stage,status);
+  document.querySelectorAll('.route-link').forEach((link,i)=>{link.dataset.state=links[i];link.querySelector('small').textContent=({done:'Done',active:'Transferring',waiting:'Waiting',paused:'Paused',stopped:'Stopped'})[links[i]];});
+  document.querySelectorAll('.route-node').forEach((node,i)=>{node.dataset.done=String(i===0 || links[i-1]==='done');});
+}
+function focusRoute() {
+  $('transfer-route').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+}
 function markStage(stage, message = '') {
+  showRoute(stage);
   stageIndex = stages.indexOf(stage);
   [...$('journey').children].forEach((li, i) => { li.className = i < stageIndex ? 'done' : i === stageIndex ? 'current' : ''; });
   if (stage === 'confirmed') [...$('journey').children].forEach(li => li.className = 'done');
@@ -249,6 +266,7 @@ $('disconnect').onclick = () => {
 function switchMode(next) {
   if (busy || queuedSend.pending) return;
   autoConnect=next==='live';
+  $('transfer-route').hidden=true;
   mode = next; $('demo-mode').setAttribute('aria-pressed', next === 'demo'); $('live-mode').setAttribute('aria-pressed', next === 'live');
   $('mode-banner').classList.toggle('live-banner', next === 'live'); $('connection-panel').hidden = next !== 'live';
   $('mode-title').textContent = next === 'demo' ? 'Demo mode — no hardware connected' : 'Live mode — waiting for the rig';
@@ -293,6 +311,7 @@ function complete(result, simulated = false) {
     $('transfer-status').textContent = result.message || 'Transfer stopped without receiver confirmation.';
     const li = $('journey').children[Math.max(0, stageIndex)]; li.className = 'failed';
   }
+  showRoute(routeStage,result.status==='confirmed' ? 'confirmed' : 'stopped');
   syncButtons();
 }
 async function send(intent) {
@@ -310,7 +329,7 @@ async function send(intent) {
       const advance = () => {
         i++; markStage(stages[i], `SIMULATED · ${$('journey').children[i].textContent}`);
         if (i === stages.length - 1) { complete({ status: 'confirmed', received: savedPayload, integrity: 'simulated exact match', durationMs: Date.now() - startedAt }, true); return; }
-        demoTimer = setTimeout(advance, 500);
+        demoTimer = setTimeout(advance, stages[i]==='vlc' ? 2500 : 650);
       };
       demoTimer = setTimeout(advance, 500);
     } else {
@@ -320,7 +339,7 @@ async function send(intent) {
       socket.send(JSON.stringify({ type: 'submit', id: transferId, hash, payload: savedPayload, shareDisplay: intent.shareDisplay }));
     }
   } catch(e) {
-    busy=false;queuedSend.cancel();$('send-error').textContent=e.message;
+    busy=false;queuedSend.cancel();showRoute(routeStage,'stopped');$('send-error').textContent=e.message;
     if(socket?.readyState===1 && room?.controller===session && !room.active) socket.send(JSON.stringify({type:'leave'}));
     syncButtons();
   }
@@ -332,6 +351,7 @@ function processQueuedSend() {
   else if(action?.type==='submit') void send(action.intent);
   else if(action?.type==='paused') {
     if(room?.controller===session || room?.queue?.includes(session)) socket.send(JSON.stringify({type:'leave'}));
+    showRoute(routeStage,'stopped');
     $('transfer-status').textContent='The demonstration paused. Your draft is kept; tap Send when it is ready again.';
   }
   syncButtons();
@@ -339,6 +359,7 @@ function processQueuedSend() {
 function requestSend() {
   if(!payload || busy || queuedSend.pending || (mode==='live' && room && !canQueue(room))) return;
   if(payload.kind==='image' && !unpackPixels(payload).some(Boolean)) return;
+  showRoute('waiting');focusRoute();
   const options={kind:tab,shareDisplay:$('share-display').checked};
   const id=crypto.randomUUID();
   if(mode==='demo') { void send({payload:structuredClone(payload),...options,id}); return; }
@@ -349,8 +370,8 @@ function requestSend() {
 }
 $('send').onclick=requestSend;
 $('cancel').onclick = () => {
-  if(busy && !commandSubmitted && mode==='live') { ++sendAttempt;busy=false;queuedSend.cancel();if(socket?.readyState===1)socket.send(JSON.stringify({type:'leave'}));$('transfer-status').textContent='Send cancelled before upload. Your draft is kept.';syncButtons();return; }
-  if(queuedSend.pending && queuedSend.pending.phase!=='dispatched') { queuedSend.cancel(); if(socket?.readyState===1) socket.send(JSON.stringify({type:'leave'})); $('transfer-status').textContent='Send cancelled. Your draft is kept.'; syncButtons(); return; }
+  if(busy && !commandSubmitted && mode==='live') { ++sendAttempt;busy=false;queuedSend.cancel();if(socket?.readyState===1)socket.send(JSON.stringify({type:'leave'}));showRoute(routeStage,'stopped');$('transfer-status').textContent='Send cancelled before upload. Your draft is kept.';syncButtons();return; }
+  if(queuedSend.pending && queuedSend.pending.phase!=='dispatched') { queuedSend.cancel(); if(socket?.readyState===1) socket.send(JSON.stringify({type:'leave'})); showRoute(routeStage,'stopped');$('transfer-status').textContent='Send cancelled. Your draft is kept.'; syncButtons(); return; }
   if (mode === 'demo') { clearTimeout(demoTimer); complete({ status: 'cancelled', message: 'Simulated transfer cancelled. Your draft is kept.' }); }
   else if (socket?.readyState === 1) { socket.send(JSON.stringify({ type: 'cancel', id: transferId })); $('transfer-status').textContent = 'Cancellation requested. Waiting for the agent to stop.'; }
   else $('send-error').textContent = 'Reconnect to request cancellation. The rig remains locked until reconciled.';
@@ -415,7 +436,7 @@ function openSocket() {
       $('mode-description').textContent = data.simulated ? 'The relay is real; hardware stages and receiver results are simulated.' : 'Only hardware acknowledgements can confirm a real transfer.';
       $('role-status').textContent = data.controller === session ? 'Controller' : 'Viewer';
       // Visitor queue text is rendered centrally by syncButtons().
-      if (data.active?.owner === session) { transferId = data.active.id; busy = true; markStage(data.active.stage, data.active.message || 'Transfer in progress.'); }
+      if (data.active?.owner === session) { transferId = data.active.id; busy = true; markStage(data.active.stage, data.active.message || 'Transfer in progress.'); if(!data.online) showRoute(routeStage,'paused'); }
       processQueuedSend();
     } else if (data.type === 'shared-result') showShared(data);
     else if (data.type === 'progress' && data.id === transferId) $('receiver-meta').textContent = 'Your picture is arriving: ' + data.receivedRecords + ' of ' + data.totalRecords + ' pieces.';
@@ -431,10 +452,11 @@ function openSocket() {
         }
         complete(data, !!data.simulated);
       }
-    } else if (data.type === 'error') { $('send-error').textContent=data.message; if(queuedSend.pending?.phase !== 'dispatched') queuedSend.cancel(); if(!room?.active) { busy=false;queuedSend.cancel(); } syncButtons(); }
+    } else if (data.type === 'error') { $('send-error').textContent=data.message; if(queuedSend.pending?.phase !== 'dispatched') queuedSend.cancel(); if(!room?.active) { busy=false;queuedSend.cancel(); } if(!busy && !queuedSend.pending && !$('transfer-route').hidden)showRoute(routeStage,'stopped'); syncButtons(); }
   };
   current.onclose = () => {
     if (socket !== current || mode !== 'live') return;
+    if(busy || queuedSend.pending) showRoute(routeStage,'paused');
     if(queuedSend.interrupted()) $('send-error').textContent='Connection interrupted. Your draft is kept; tap Send again once connected.';
     showConnection('Reconnecting…', 'Your draft is saved. Restoring the live connection.'); $('relay-status').textContent = 'Disconnected'; $('rig-status').textContent = 'Rig offline / unknown'; room = null; syncButtons();
     $('monitor-mode').textContent = 'Disconnected'; $('monitor-activity').textContent = 'Relay disconnected. Live rig status is unknown.';
@@ -447,7 +469,7 @@ function openSocket() {
 setInterval(() => {
   visitorNotice();
   if (lastTelemetry && Date.now() - lastTelemetry > 5000) { for (const name of ['bufferPercent','bufferUsed','bufferCapacity','threshold','rxRate','rxGood','rxCrc','rxLocked','rxOverflows']) $('twin-' + name).textContent = 'Stale'; $('twin-streaming').textContent = 'Stale'; $('telemetry-tag').textContent = 'Stale'; $('last-update').textContent = 'Telemetry is stale — last update over 5 seconds ago.'; $('monitor-plc').textContent = 'Stale'; $('monitor-vlc').textContent = 'Stale'; }
-  if (mode === 'live' && socket?.readyState === 1 && room?.online && performance.now() - lastRoomAt > 5000) { room.online = false; showConnection('Connected · rig offline', 'Your phone is connected. Waiting for hardware telemetry.', true); $('rig-status').textContent = 'Rig offline'; $('monitor-mode').textContent = 'Rig offline'; $('monitor-activity').textContent = 'Agent telemetry stopped. Waiting for reconnection.'; syncButtons(); }
+  if (mode === 'live' && socket?.readyState === 1 && room?.online && performance.now() - lastRoomAt > 5000) { room.online = false; if(busy)showRoute(routeStage,'paused'); showConnection('Connected · rig offline', 'Your phone is connected. Waiting for hardware telemetry.', true); $('rig-status').textContent = 'Rig offline'; $('monitor-mode').textContent = 'Rig offline'; $('monitor-activity').textContent = 'Agent telemetry stopped. Waiting for reconnection.'; syncButtons(); }
 }, 1000);
 switchMode('live');
 setTab('drawing');

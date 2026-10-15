@@ -93,3 +93,5 @@ The canvas and primary Send are first; preview and technical settings are collap
 Guest QR target: https://hpv.selah.net.za/send . Printable sign: https://hpv.selah.net.za/visit ; PNG/SVG at /assets/studio-qr.png and /assets/studio-qr.svg. Keep the project homepage available for background information.
 
 Offline visitor alternative: the paused notice offers Try a practice demo. It retains the draft, explicitly labels simulation, and offers Return to the live rig. Mode switching stays disabled during queued or active sends.
+
+Visual transfer route: Send reveals phone -> cloud relay -> sender PC -> PLC adapters -> VLC TX -> VLC RX. public/transfer-route.js maps existing stages; PLC hops share the reported PLC stage, with no invented per-adapter telemetry. Active lines pulse (reduced-motion disables animation), completed lines turn green. Optical completion requires complete() after receiver payload verification; a raw confirmed stage alone cannot finish the optical line. Disconnections and stopped transfers stop pulsing. Practice route is explicitly labelled simulated. No new hardware commands or connections.

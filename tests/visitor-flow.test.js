@@ -48,7 +48,7 @@ const sendSource=source.slice(source.indexOf('async function send(intent)'),sour
 function sendContext(){
  let resolveHash;const sent=[],nodes={};
  const context={busy:false,sendAttempt:0,commandSubmitted:false,mode:'live',savedPayload:null,startedAt:0,transferId:null,session:'me',room:{...ready,controller:'me'},canQueue,structuredClone,Date,
-  payloadHash:()=>new Promise(resolve=>resolveHash=resolve),socket:{readyState:1,send:value=>sent.push(JSON.parse(value))},queuedSend:new QueuedSend(),syncButtons(){},markStage(){},$:id=>nodes[id]??={hidden:false,textContent:''}};
+  payloadHash:()=>new Promise(resolve=>resolveHash=resolve),socket:{readyState:1,send:value=>sent.push(JSON.parse(value))},queuedSend:new QueuedSend(),syncButtons(){},markStage(){},showRoute(){},routeStage:"prepared",$:id=>nodes[id]??={hidden:false,textContent:''}};
  vm.createContext(context);vm.runInContext(sendSource,context);
  return {context,sent,resolve:()=>resolveHash('a'.repeat(64))};
 }

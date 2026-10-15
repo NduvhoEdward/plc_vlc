@@ -167,3 +167,38 @@ body{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inse
 }
 
 .visitor-studio #notice-mode{margin-top:10px;min-height:44px;font-size:13px}
+
+.visitor-studio .transfer-route{margin:0 0 22px;padding:22px;scroll-margin-top:140px}
+.transfer-route h2{font-size:20px;margin:0;letter-spacing:-.4px}
+.transfer-route #route-status{font-size:14px;color:var(--muted);margin:12px 0 24px}
+.route-track{display:flex;align-items:flex-start;list-style:none;padding:0;margin:0}
+.route-node{flex:0 0 95px;text-align:center;min-width:0}
+.route-node strong{display:block;font-size:13px;margin-top:10px}
+.route-node small{display:block;font-size:10px;color:var(--muted);margin-top:3px}
+.route-number{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:50%;background:var(--paper,#fff);color:var(--muted);font-size:13px}
+.route-node[data-done=true] .route-number{background:#e4f4e9;border-color:#249255;color:#176b3c}
+.route-link{flex:1;min-width:12px;text-align:center;padding-top:18px;color:var(--muted)}
+.route-wire{display:block;height:4px;background:#d9e1e8;border-radius:4px}
+.route-link-label{display:block;font-size:9px;margin-top:9px}
+.route-link[data-state=done]{color:#176b3c}
+.route-link[data-state=done] .route-wire{background:#249255}
+.route-link[data-state=active]{color:#167aa0}
+.route-link[data-state=active] .route-wire{background:#218cb7;animation:route-pulse 1.2s ease-in-out infinite}
+.route-link[data-state=paused] .route-wire,.route-link[data-state=stopped] .route-wire{background:#bd793e}
+.route-key{display:flex;gap:20px;font-size:11px;margin:24px 0 8px;color:var(--muted)}
+@keyframes route-pulse{0%,100%{opacity:1}50%{opacity:.28}}
+@media(prefers-reduced-motion:reduce){.route-link[data-state=active] .route-wire{animation:none}}
+@media(max-width:750px){
+ .visitor-studio .transfer-route{padding:18px}
+ .transfer-route .card-heading{align-items:flex-start;gap:10px}
+ .transfer-route h2{font-size:18px}
+ .transfer-route .pill{font-size:9px;white-space:nowrap}
+ .route-track{display:block}
+ .route-node{display:flex;align-items:center;gap:12px;text-align:left}
+ .route-node strong{margin:0;font-size:14px}
+ .route-node small{font-size:11px}
+ .route-link{display:flex;align-items:center;gap:12px;margin:4px 0 4px 19px;padding:0;height:26px;text-align:left}
+ .route-wire{height:26px;width:4px;flex-shrink:0}
+ .route-link-label{margin:0;font-size:10px}
+ .route-key{gap:14px;margin-top:18px}
+}
