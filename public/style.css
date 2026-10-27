@@ -209,3 +209,25 @@ body{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inse
  .route-link-label{margin:0;font-size:10px}
  .route-key{gap:14px;margin-top:18px}
 }
+
+/* Latest measured PLC investigation, separate from the teaching simulation. */
+.plc-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:30px 0 42px}
+.plc-facts article{border-top:2px solid var(--copper);padding-top:18px}
+.plc-facts span{font-size:10px;letter-spacing:1.2px;font-weight:700;color:var(--muted)}
+.plc-facts strong{display:block;font-size:30px;line-height:1.2;margin:10px 0}
+.plc-facts p{font-size:14px;color:var(--muted);margin:0}
+.plc-summary{display:grid;grid-template-columns:1.1fr 1fr;gap:50px;margin-bottom:32px}
+.plc-summary h3{font-size:28px;line-height:1.2;margin:8px 0 18px}
+.plc-context{border-left:1px solid var(--line);padding-left:30px}
+.plc-context h3{font-size:20px}
+.plc-summary p{color:var(--muted)}
+.table-scroll{overflow:auto}
+.plc-results{width:100%;border-collapse:collapse;font-size:14px;text-align:left}
+.plc-results caption{text-align:left;font-weight:700;font-size:20px;padding:0 0 18px}
+.plc-results th,.plc-results td{padding:16px 18px;border-bottom:1px solid var(--line);vertical-align:top}
+.plc-results thead{background:var(--beam-soft)}
+.plc-investigation .performance-grid img{height:auto;object-fit:contain;background:white}
+.plc-investigation .performance-grid{margin:32px 0}
+.historical-evidence{margin-top:24px;border-top:1px solid var(--line);padding-top:16px}
+.historical-evidence>summary{cursor:pointer;font-weight:600;min-height:44px}
+@media(max-width:700px){.plc-facts,.plc-summary{grid-template-columns:1fr;gap:24px}.plc-context{padding-left:0;border-left:0;border-top:1px solid var(--line);padding-top:20px}.plc-results{min-width:600px}.plc-facts{margin-bottom:30px}}

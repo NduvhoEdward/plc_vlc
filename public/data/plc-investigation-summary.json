@@ -1,0 +1,47 @@
+{
+  "source": "PLC Investigation - Technical Report, 26 October 2026; abstract, buffer design, integrated results and conclusion",
+  "survey": {
+    "records": 31,
+    "observation_seconds": 5393,
+    "longest_gap_seconds_approx": 5.46
+  },
+  "buffer": {
+    "capacity_bytes": 105472,
+    "declared_startup_percent": 75,
+    "target_fill_percent": 85,
+    "sizing_target_seconds": 2.5,
+    "sizing_rate_kbit_s": 300
+  },
+  "test_context": {
+    "modes": 5,
+    "repeats_per_mode": 3,
+    "seconds_per_repeat": 60,
+    "charger_watts": 65,
+    "iron": "off",
+    "optical_distance_cm": 3,
+    "alignment_degrees": 0,
+    "nominal_optical_kbit_s": 280
+  },
+  "comparison": {
+    "immediate_fixed": {
+      "payload_after_5s_kbit_s": 204.91,
+      "full_rejections_complete_captures": 19719,
+      "zero_output_windows_after_5s": 0,
+      "windows_after_5s": 327
+    },
+    "gated_feedback": {
+      "payload_after_5s_kbit_s": 201.24,
+      "mean_fill_percent_after_5s": 84.96,
+      "full_rejections_complete_captures": 0,
+      "zero_output_windows_after_5s": 5,
+      "windows_after_5s": 327
+    }
+  },
+  "limits": [
+    "No independent survey repeats",
+    "No independently validated outage coverage",
+    "No timestamped end-to-end latency",
+    "No mine deployment or audio playback-quality validation",
+    "No measured installation savings"
+  ]
+}
